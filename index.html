@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AURA — 당신의 위험한 매력 구조</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700;900&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --lime: #8eff01;
+  --purple: #8b53fe;
+  --deepest: #080b10;
+  --white: #f0eeff;
+  --muted: #7a7a9a;
+  --card: rgba(139,83,254,0.07);
+  --border: rgba(142,255,1,0.13);
+  --border-p: rgba(139,83,254,0.22);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;}
+body{background:var(--deepest);color:var(--white);font-family:'Noto Sans KR',sans-serif;-webkit-font-smoothing:antialiased;}
+
+/* NOISE */
+body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.032;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+#bg-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;}
+
+/* PROGRESS */
+.prog-wrap{position:fixed;top:0;left:0;right:0;height:2px;background:rgba(255,255,255,.05);z-index:100;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--lime));transition:width .55s ease;box-shadow:0 0 6px var(--lime);}
+
+/* DOTS */
+.pdots{position:fixed;top:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:100;}
+.pdot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.12);transition:all .35s;cursor:pointer;}
+.pdot.active{background:var(--lime);box-shadow:0 0 7px var(--lime);width:18px;border-radius:3px;}
+.pdot.done{background:var(--purple);}
+
+/* PAGES */
+.page{position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;
+  overflow-y:scroll;overflow-x:hidden;padding:48px 24px 160px;
+  opacity:0;pointer-events:none;transform:translateY(40px);
+  transition:opacity .6s ease,transform .6s ease;-webkit-overflow-scrolling:touch;}
+.page.active{opacity:1;pointer-events:all;transform:translateY(0);}
+.page.exit-up{opacity:0;transform:translateY(-40px);pointer-events:none;}
+.page.exit-down{opacity:0;transform:translateY(40px);pointer-events:none;}
+.page.center{justify-content:center;text-align:center;} .page:not(.center){justify-content:flex-start;}
+.page::-webkit-scrollbar{display:none;}
+.page{-ms-overflow-style:none;scrollbar-width:none;}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:99;
+  padding:10px 20px 26px;
+  background:linear-gradient(to top,rgba(8,11,16,.98) 60%,transparent);
+  display:flex;flex-direction:column;align-items:center;gap:8px;}
+.live-txt{font-size:11px;color:var(--muted);}
+.live-txt span{color:var(--lime);font-weight:700;}
+.nav-btns{display:flex;gap:10px;width:100%;max-width:360px;}
+
+/* BUTTONS */
+.btn-main{width:100%;max-width:360px;padding:18px 32px;
+  background:linear-gradient(135deg,var(--lime),#aaff30);
+  color:#080b10;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:16px;
+  border:none;border-radius:100px;cursor:pointer;letter-spacing:.02em;
+  box-shadow:0 0 36px rgba(142,255,1,.28),0 8px 28px rgba(0,0,0,.45);transition:all .25s;}
+.btn-main:active{transform:scale(.97);}
+.btn-ghost{flex:0 0 auto;background:transparent;border:1px solid var(--border-p);color:var(--muted);
+  font-size:13px;padding:14px 20px;border-radius:100px;cursor:pointer;transition:all .25s;
+  font-family:'Noto Sans KR',sans-serif;display:none;}
+.btn-ghost:active{border-color:var(--lime);color:var(--lime);}
+.btn-next{flex:1;padding:17px 24px;background:linear-gradient(135deg,var(--lime),#aaff30);
+  color:#080b10;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:15px;
+  border:none;border-radius:100px;cursor:pointer;letter-spacing:.02em;
+  box-shadow:0 0 28px rgba(142,255,1,.22);transition:all .25s;}
+.btn-next:active{transform:scale(.97);}
+
+/* TYPOGRAPHY */
+.eyebrow{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--lime);margin-bottom:14px;}
+.pg-title{font-family:'Noto Serif KR',serif;font-size:clamp(28px,8vw,52px);font-weight:900;line-height:1.04;letter-spacing:-.025em;margin-bottom:12px;}
+.pg-sub{font-size:14px;color:var(--muted);line-height:1.9;margin-bottom:24px;max-width:320px;}
+.pg-sub strong{color:var(--white);}
+.pg-sub em{color:var(--lime);font-style:normal;}
+
+/* BADGE / WARNING */
+.badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-p);background:rgba(139,83,254,.1);padding:6px 16px;border-radius:100px;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:22px;}
+.badge-dot{width:6px;height:6px;background:var(--lime);border-radius:50%;box-shadow:0 0 8px var(--lime);animation:bdot 2s infinite;}
+@keyframes bdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.warn-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(255,60,60,.1);border:1px solid rgba(255,60,60,.25);padding:6px 14px;border-radius:100px;font-size:11px;color:#ff8080;letter-spacing:.08em;margin-bottom:18px;}
+
+/* HERO */
+.hero-h1{font-family:'Noto Serif KR',serif;font-size:clamp(30px,9vw,56px);font-weight:900;line-height:1.04;letter-spacing:-.028em;margin-bottom:10px;}
+.line-lime{color:var(--lime);display:block;}
+.line-white{color:var(--white);display:block;}
+.line-purple{color:var(--purple);display:block;filter:drop-shadow(0 0 20px rgba(139,83,254,.8));}
+.hero-stats{display:flex;justify-content:center;gap:28px;margin-bottom:32px;}
+.stat{text-align:center;}
+.stat-num{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:var(--lime);}
+.stat-label{font-size:10px;color:var(--muted);letter-spacing:.08em;margin-top:2px;}
+
+/* HOOK */
+.hook-lines{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;}
+.hook-line{padding:17px 17px 17px 19px;border-left:2px solid var(--border-p);background:var(--card);border-radius:0 12px 12px 0;}
+.hook-line p{font-size:14px;line-height:1.85;color:rgba(240,238,255,.82);}
+.hook-line p strong{color:var(--white);}
+.hook-line p em{color:var(--lime);font-style:normal;}
+.danger-box{background:rgba(255,50,50,.06);border:1px solid rgba(255,50,50,.18);border-radius:12px;padding:15px 17px;font-size:13px;line-height:1.8;color:#ff9090;text-align:center;width:100%;max-width:380px;margin-top:4px;}
+
+/* FORM */
+.form-card{width:100%;max-width:380px;background:rgba(139,83,254,.06);border:1px solid var(--border-p);border-radius:22px;padding:24px 20px;position:relative;}
+.form-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--purple),transparent);}
+.upload-area{border:2px dashed var(--border-p);border-radius:15px;padding:28px 18px;text-align:center;margin-bottom:20px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;background:rgba(139,83,254,.03);}
+.upload-area:hover{border-color:var(--lime);background:rgba(142,255,1,.03);}
+.upload-icon{font-size:30px;margin-bottom:9px;}
+.upload-title{font-size:14px;font-weight:700;margin-bottom:5px;}
+.upload-sub{font-size:12px;color:var(--muted);line-height:1.7;}
+.upload-input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:100px;}
+.upload-preview{display:none;position:relative;}
+.upload-preview img{width:100%;border-radius:12px;max-height:180px;object-fit:cover;}
+.rm-btn{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.65);border:none;border-radius:50%;width:28px;height:28px;color:white;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.f-label{font-size:11px;letter-spacing:.09em;color:var(--muted);margin-bottom:7px;display:block;text-transform:uppercase;}
+.f-row{margin-bottom:14px;}
+.f-input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border-p);border-radius:11px;padding:13px 15px;color:var(--white);font-family:'Noto Sans KR',sans-serif;font-size:14px;outline:none;transition:border-color .3s;-webkit-appearance:none;appearance:none;}
+.f-input:focus{border-color:var(--lime);box-shadow:0 0 0 3px rgba(142,255,1,.07);}
+.f-input option{background:#0e0820;}
+.f-input[type=date]::-webkit-calendar-picker-indicator,.f-input[type=time]::-webkit-calendar-picker-indicator{filter:invert(.45);}
+.f-row-2{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px;}
+.f-notice{font-size:11px;color:var(--muted);text-align:center;margin-top:11px;line-height:1.8;}
+.f-notice strong{color:var(--lime);}
+
+/* LOADING OVERLAY */
+#loading-screen{position:fixed;inset:0;z-index:500;background:var(--deepest);display:none;flex-direction:column;align-items:center;justify-content:center;gap:28px;}
+#loading-screen.on{display:flex;}
+#load-canvas{border-radius:50%;}
+.load-steps{text-align:center;}
+.load-step-txt{font-size:14px;color:var(--muted);letter-spacing:.05em;min-height:22px;}
+.load-bar-wrap{width:200px;height:2px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;}
+.load-bar-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--lime));border-radius:2px;box-shadow:0 0 7px var(--lime);transition:width .5s ease;}
+.dots-ani::after{content:'';animation:dota 1.5s infinite;}
+@keyframes dota{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
+.load-warn{font-size:13px;color:#ff8080;letter-spacing:.1em;opacity:0;transition:opacity .5s;}
+.load-warn.on{opacity:1;}
+
+
+
+/* ── AURA TRIO ── */
+.aura-card-section{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;}
+.aura-trio{display:flex;justify-content:center;gap:14px;margin-bottom:18px;width:100%;max-width:340px;}
+.trio-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border-p);border-radius:14px;padding:14px 8px;}
+.trio-icon-wrap{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(139,83,254,.1);}
+.trio-color-dot{width:24px;height:24px;border-radius:50%;flex-shrink:0;}
+.trio-label{font-size:10px;letter-spacing:.08em;color:var(--muted);text-align:center;}
+.trio-value{font-size:11px;font-family:monospace;font-weight:700;text-align:center;}
+.blurred-val{filter:blur(4px);-webkit-filter:blur(4px);user-select:none;}
+
+/* ── ANALYSIS LINES (4P) ── */
+.analysis-lines{width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;margin-bottom:4px;}
+.aline{font-size:14px;line-height:1.9;color:rgba(240,238,255,.82);background:var(--card);border:1px solid var(--border-p);border-radius:14px;padding:18px;position:relative;overflow:hidden;margin-bottom:4px;}
+.aline::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--purple),transparent);}
+.aline-first{border-color:rgba(142,255,1,.15);}
+.aline-first::before{background:linear-gradient(90deg,transparent,var(--lime),transparent);}
+.aline strong{color:var(--white);}
+.aline-name{color:var(--lime);font-weight:700;}
+.aline-blur{filter:blur(5px);-webkit-filter:blur(5px);user-select:none;pointer-events:none;color:var(--white);font-weight:700;}
+
+/* ── 5P EXTRAS ── */
+.color-inline{font-family:monospace;font-weight:700;color:var(--lime);filter:blur(4px);-webkit-filter:blur(4px);user-select:none;}
+.mini-blur{filter:blur(3px);-webkit-filter:blur(3px);user-select:none;}
+.p5-name{color:var(--lime);font-weight:700;}
+
+
+/* ── PAYMENT BOTTOM SHEET ── */
+#pay-sheet{position:fixed;inset:0;z-index:700;display:none;align-items:center;justify-content:center;padding:20px;}
+#pay-sheet.on{display:flex;}
+#pay-backdrop{position:absolute;inset:0;background:rgba(5,3,14,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+#pay-body{position:relative;z-index:1;background:#0e0b1e;border-radius:24px;padding:22px 20px 24px;width:100%;max-width:380px;border:1px solid rgba(139,83,254,.3);box-shadow:0 0 60px rgba(139,83,254,.15);}
+#pay-body::-webkit-scrollbar{display:none;}
+.sheet-handle{display:none;}
+.sheet-title{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;text-align:center;margin-bottom:6px;line-height:1.3;}
+.sheet-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:22px;line-height:1.7;}
+.sheet-reviews{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.s-review{background:rgba(139,83,254,.07);border:1px solid var(--border-p);border-radius:14px;padding:14px 16px;}
+.s-rv-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.s-rv-user{display:flex;align-items:center;gap:8px;}
+.s-rv-avatar{width:30px;height:30px;border-radius:50%;background:conic-gradient(var(--lime),var(--purple),var(--lime));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#080b10;}
+.s-rv-name{font-size:12px;font-weight:700;}
+.s-rv-age{font-size:10px;color:var(--muted);}
+.s-rv-stars{color:var(--lime);font-size:11px;letter-spacing:1px;}
+.s-rv-text{font-size:12px;color:rgba(240,238,255,.8);line-height:1.75;}
+.s-rv-hi{color:var(--lime);font-weight:700;}
+.sheet-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border-p),transparent);margin:16px 0;}
+.sheet-faq{display:flex;flex-direction:column;gap:0;margin-bottom:20px;}
+.sheet-faq-item{border:1px solid var(--border-p);border-radius:10px;overflow:hidden;margin-bottom:6px;}
+.sheet-faq-q{padding:12px 16px;font-size:13px;font-weight:500;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--card);}
+.sheet-faq-q::after{content:'+';color:var(--lime);font-size:16px;transition:transform .3s;}
+.sheet-faq-item.open .sheet-faq-q::after{transform:rotate(45deg);}
+.sheet-faq-a{font-size:12px;color:var(--muted);line-height:1.8;max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s;padding:0 16px;background:rgba(139,83,254,.04);}
+.sheet-faq-item.open .sheet-faq-a{max-height:160px;padding:12px 16px;}
+
+/* ── AURA CARD (PAGE 4) ── */
+.aura-card-section{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;}
+.aura-card-wrap{position:relative;width:100%;max-width:300px;aspect-ratio:3/4;border-radius:24px;overflow:hidden;margin:0 auto 20px;box-shadow:0 0 60px rgba(139,83,254,.25);}
+#aura-card-canvas{width:100%;height:100%;display:block;}
+.aura-card-blur{position:absolute;inset:0;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);background:rgba(8,11,16,.08);}
+.aura-card-lock{background:rgba(139,83,254,.2);border:1px solid var(--border-p);padding:9px 20px;border-radius:100px;font-size:12px;letter-spacing:.1em;color:var(--white);}
+.aura-card-lock-sub{font-size:11px;color:var(--muted);text-align:center;line-height:1.6;padding:0 20px;}
+
+/* COLOR CHIPS */
+.color-reveal-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:12px;}
+.color-chips{display:flex;justify-content:center;gap:12px;margin-bottom:16px;}
+.color-chip{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:100px;border:1px solid var(--border-p);background:var(--card);font-size:12px;}
+.cdot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+.chex{font-family:monospace;font-size:11px;color:var(--muted);}
+
+/* QUOTE */
+.quote-block{width:100%;max-width:380px;padding:17px 17px 17px 21px;border-left:2px solid var(--purple);background:rgba(139,83,254,.06);border-radius:0 14px 14px 0;margin-bottom:14px;}
+.quote-text{font-family:'Noto Serif KR',serif;font-size:14px;line-height:1.95;color:rgba(240,238,255,.85);font-style:italic;font-weight:300;}
+.quote-src{font-size:11px;color:var(--muted);margin-top:10px;}
+
+.extra-tease{width:100%;max-width:380px;background:rgba(139,83,254,.07);border:1px solid var(--border-p);border-radius:14px;padding:15px 17px;font-size:13px;line-height:1.85;color:rgba(240,238,255,.78);}
+.extra-tease strong{color:var(--lime);}
+
+/* RESULT CARDS */
+.result-cards{display:flex;flex-direction:column;gap:11px;width:100%;max-width:380px;}
+.res-card{border:1px solid var(--border-p);background:var(--card);border-radius:16px;padding:18px;position:relative;overflow:hidden;}
+.res-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--purple),transparent);}
+.res-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--lime);margin-bottom:7px;}
+.res-title{font-size:14px;font-weight:700;margin-bottom:7px;line-height:1.3;}
+.res-preview{font-size:13px;color:rgba(240,238,255,.68);line-height:1.8;margin-bottom:8px;}
+.score-row{display:flex;align-items:center;gap:11px;margin:8px 0;}
+.s-bar{flex:1;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;}
+.s-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--purple),var(--lime));box-shadow:0 0 7px rgba(142,255,1,.4);}
+.s-num{font-size:12px;font-weight:700;color:var(--lime);white-space:nowrap;}
+.blur-wrap{position:relative;margin-top:8px;}
+.blur-txt{font-size:13px;color:rgba(240,238,255,.7);line-height:1.8;filter:blur(6px);-webkit-filter:blur(6px);user-select:none;pointer-events:none;}
+.blur-over{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.lock-chip{background:rgba(139,83,254,.18);border:1px solid var(--border-p);padding:6px 14px;border-radius:100px;font-size:11px;letter-spacing:.08em;color:var(--white);backdrop-filter:blur(4px);}
+
+/* LOCKED LIST */
+.locked-list{display:flex;flex-direction:column;gap:9px;width:100%;max-width:380px;}
+.locked-item{display:flex;align-items:center;gap:13px;padding:15px 16px;border:1px solid var(--border-p);background:var(--card);border-radius:13px;position:relative;overflow:hidden;}
+.lock-emoji{font-size:17px;flex-shrink:0;}
+.lock-text{font-size:13px;color:rgba(240,238,255,.4);filter:blur(3.5px);-webkit-filter:blur(3.5px);user-select:none;flex:1;}
+.locked-item.fire{border-color:rgba(255,80,80,.24);background:rgba(255,50,50,.05);}
+.fire-badge{position:absolute;right:14px;font-size:10px;color:#ff8080;letter-spacing:.09em;white-space:nowrap;}
+
+/* PERSUADE */
+.persuade-lines{display:flex;flex-direction:column;gap:12px;width:100%;max-width:380px;}
+.p-line{font-size:15px;line-height:1.9;color:rgba(240,238,255,.8);border-left:2px solid var(--border-p);padding:4px 0 4px 15px;}
+.p-line strong{color:var(--white);}
+.p-line em{color:var(--lime);font-style:normal;}
+.key-box{width:100%;max-width:380px;background:rgba(139,83,254,.08);border:1px solid var(--border-p);border-radius:16px;padding:22px 18px;text-align:center;font-family:'Noto Serif KR',serif;font-size:15px;font-weight:600;line-height:1.75;}
+.key-box em{color:var(--lime);font-style:normal;display:block;margin-top:10px;font-size:13px;font-weight:300;font-family:'Noto Sans KR',sans-serif;}
+
+/* PRICING */
+.pricing-box{width:100%;max-width:380px;border:1px solid var(--border);border-radius:22px;padding:28px 20px;text-align:center;position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(142,255,1,.04),rgba(139,83,254,.05));}
+.pricing-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--lime),var(--purple),transparent);}
+.p-badge{display:inline-block;background:rgba(142,255,1,.12);border:1px solid var(--border);padding:4px 13px;border-radius:100px;font-size:11px;letter-spacing:.12em;color:var(--lime);margin-bottom:16px;}
+.p-ori{font-size:13px;color:var(--muted);text-decoration:line-through;margin-bottom:3px;}
+.p-price{font-family:'Noto Serif KR',serif;font-size:50px;font-weight:900;color:var(--lime);line-height:1;margin-bottom:4px;text-shadow:0 0 36px rgba(142,255,1,.36);}
+.p-price sup{font-size:20px;vertical-align:super;}
+.p-note{font-size:12px;color:var(--muted);margin-bottom:22px;}
+.p-list{text-align:left;margin-bottom:22px;}
+.p-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;}
+.p-item:last-child{border:none;}
+.p-check{color:var(--lime);font-size:13px;flex-shrink:0;}
+.p-item.hot{color:#ff9090;}
+.p-item.hot .p-check{color:#ff6060;}
+.urgency{margin-top:14px;font-size:11px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px;}
+.u-dot{width:6px;height:6px;background:#ff4444;border-radius:50%;animation:bdot 1s infinite;}
+
+/* REVIEWS */
+.reviews-list{display:flex;flex-direction:column;gap:12px;width:100%;max-width:380px;}
+.review{border:1px solid var(--border-p);background:var(--card);border-radius:15px;padding:18px;}
+.rv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.rv-user{display:flex;align-items:center;gap:9px;}
+.rv-avatar{width:34px;height:34px;border-radius:50%;background:conic-gradient(var(--lime),var(--purple),var(--lime));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--deepest);}
+.rv-name{font-size:13px;font-weight:700;}
+.rv-age{font-size:11px;color:var(--muted);}
+.rv-stars{color:var(--lime);font-size:12px;letter-spacing:2px;}
+.rv-text{font-size:13px;color:rgba(240,238,255,.8);line-height:1.85;}
+.rv-hi{color:var(--lime);font-weight:700;}
+
+/* FAQ */
+.faq{display:flex;flex-direction:column;width:100%;max-width:380px;}
+.faq-item{border:1px solid var(--border-p);border-radius:12px;overflow:hidden;margin-bottom:7px;}
+.faq-q{padding:14px 18px;font-size:13px;font-weight:500;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--card);}
+.faq-q::after{content:'+';color:var(--lime);font-size:17px;transition:transform .3s;}
+.faq-item.open .faq-q::after{transform:rotate(45deg);}
+.faq-a{font-size:12px;color:var(--muted);line-height:1.85;max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s;padding:0 18px;background:rgba(139,83,254,.04);}
+.faq-item.open .faq-a{max-height:180px;padding:14px 18px;}
+
+.sect-div{width:100%;max-width:380px;height:1px;background:linear-gradient(90deg,transparent,var(--border-p),transparent);margin:18px 0;}
+.last-warning{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.8;padding:12px 16px;background:rgba(255,50,50,.05);border:1px solid rgba(255,50,50,.15);border-radius:10px;text-align:center;max-width:380px;width:100%;}
+.footer-txt{font-size:11px;color:var(--muted);line-height:1.95;text-align:center;width:100%;margin-top:24px;}
+.footer-logo{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:900;letter-spacing:.15em;margin-bottom:10px;}
+.footer-logo span{color:var(--lime);}
+
+/* PARTICLES */
+.particles{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:1;}
+.particle{position:absolute;border-radius:50%;animation:floatUp linear infinite;}
+@keyframes floatUp{0%{transform:translateY(0) translateX(0);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(-100vh) translateX(28px);opacity:0}}
+
+/* aura card type name overlay */
+.aura-type-name{font-family:'Noto Serif KR',serif;font-size:18px;font-weight:900;color:var(--white);letter-spacing:.08em;text-align:center;margin-bottom:14px;margin-top:12px;text-shadow:0 0 20px rgba(142,255,1,.3);}
+
+.rv-slot{position:absolute;left:0;right:0;background:rgba(139,83,254,.08);border:1px solid rgba(139,83,254,.22);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;transition:transform .7s ease,opacity .7s ease;}
+.pop-rv-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.pop-rv-name{font-size:11px;font-weight:700;color:#f0eeff;}
+.pop-rv-stars{font-size:10px;color:#8eff01;letter-spacing:1px;}
+.pop-rv-text{font-size:11px;color:rgba(240,238,255,.75);line-height:1.65;margin-top:3px;}
+.pop-rv-hi{color:#8eff01;font-weight:700;}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="particles" id="particles"></div>
+
+<div class="prog-wrap"><div class="prog-fill" id="prog" style="width:12.5%"></div></div>
+<div class="pdots" id="pdots"></div>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <canvas id="load-canvas" width="90" height="90"></canvas>
+  <div class="load-steps">
+    <div class="load-step-txt" id="load-txt">에너지 감지 중<span class="dots-ani"></span></div>
+  </div>
+  <div class="load-bar-wrap"><div class="load-bar-fill" id="load-bar" style="width:0%"></div></div>
+  <div class="load-warn" id="load-warn">⚠️ 위험한 매력 요소 감지됨</div>
+</div>
+
+<!-- ══ PAGE 1 — HERO ══ -->
+<div class="page center active" id="pg-0">
+  <div class="badge"><span class="badge-dot"></span> AI 아우라 분석 · 베타 오픈</div>
+  <div class="warn-tag">⚠️ 위험한 매력 요소 감지됨</div>
+  <h1 class="hero-h1">
+    <span class="line-lime">AURA</span>
+    <span class="line-white">사람들이 당신에게</span>
+    <span class="line-purple">빠지는 이유</span>
+  </h1>
+  <p class="pg-sub" style="text-align:center">생년월일 + 사진 한 장으로<br><strong>당신의 숨겨진 매력과 본능</strong>을<br>아우라로 해석합니다</p>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">3,241</div><div class="stat-label">분석 완료</div></div>
+    <div class="stat"><div class="stat-num">4.9★</div><div class="stat-label">평균 만족도</div></div>
+    <div class="stat"><div class="stat-num">12,900</div><div class="stat-label">원 단 1회</div></div>
+  </div>
+</div>
+
+<!-- ══ PAGE 2 — HOOK ══ -->
+<div class="page" id="pg-1">
+  <div class="eyebrow" style="text-align:center">당신은 이미 알고 있다</div>
+  <h2 class="pg-title" style="text-align:center;font-size:clamp(24px,7vw,42px)">당신은 이미,<br>몇 번은 느껴봤을 거예요</h2>
+  <div class="hook-lines" style="margin-top:28px">
+    <div class="hook-line"><p>"어, 저 사람… 나한테 끌리는 것 같은데?"<br>설명할 수는 없는데, <strong>이상하게 확신이 드는 순간.</strong><br>그리고 얼마 지나지 않아 정말로 그런 방향으로 흘러가버렸던 경험.</p></div>
+    <div class="hook-line"><p><strong>사실 그건 우연이 아닙니다.</strong><br>당신은 이미 알고 있는 사람입니다.<br>다만, <em>정확한 언어로 설명하지 못했을 뿐.</em></p></div>
+    <div class="hook-line"><p>왜 어떤 사람은 쉽게 끌리고, 왜 어떤 관계는 반복되는지<br>왜 어떤 사람은 당신에게 <strong>집착</strong>하고<br>또 어떤 사람은 갑자기 멀어지는지</p></div>
+  </div>
+  <div class="danger-box" style="margin-top:14px">⚠️ 문제는 그 매력이, 항상 좋은 방향으로만 작동하지 않는다는 점입니다</div>
+</div>
+
+<!-- ══ PAGE 3 — INPUT FORM ══ -->
+<div class="page" id="pg-2" style="align-items:center;justify-content:flex-start;padding-top:56px;padding-bottom:160px;min-height:100vh;">
+  <div class="eyebrow" style="text-align:center">START ANALYSIS</div>
+  <h2 class="pg-title" style="text-align:center;font-size:clamp(20px,5vw,32px)">당신의 '진짜 성향'을<br>읽어내는 중입니다</h2>
+  <p class="pg-sub" style="text-align:center;margin-bottom:20px">사진과 생년월일을 입력하면<br>AI가 당신만의 아우라를 생성합니다</p>
+
+  <div class="form-card">
+    <div class="upload-area" id="uploadArea">
+      <input type="file" class="upload-input" accept="image/*" id="photoInput" onchange="handlePhoto(event)">
+      <div id="uploadPlaceholder">
+        <div class="upload-icon">📸</div>
+        <div class="upload-title">정면 사진 업로드</div>
+        <div class="upload-sub">얼굴 전체가 보이는 사진<br>밝은 조명 · 필터 최소화</div>
+      </div>
+      <div class="upload-preview" id="uploadPreview">
+        <img id="previewImg" src="" alt="">
+        <button class="rm-btn" onclick="removePhoto(event)">✕</button>
+      </div>
+    </div>
+    <div class="f-row">
+      <label class="f-label">이름 또는 닉네임</label>
+      <input type="text" class="f-input" id="userName" placeholder="예: 지은, 하연, 수민..." maxlength="10">
+    </div>
+    <div class="f-row">
+      <label class="f-label">생년월일 (양력)</label>
+      <input type="date" class="f-input" id="birthDate" max="2008-12-31" min="1980-01-01" onchange="onInputChange()">
+    </div>
+    <div class="f-row-2">
+      <div>
+        <label class="f-label">출생 시간 (선택)</label>
+        <input type="time" class="f-input" id="birthTime">
+      </div>
+      <div>
+        <label class="f-label">혈액형</label>
+        <select class="f-input" id="bloodType">
+          <option value="">선택</option>
+          <option>A형</option><option>B형</option><option>O형</option><option>AB형</option>
+        </select>
+      </div>
+    </div>
+    <div class="f-row">
+      <label class="f-label">요즘 가장 신경 쓰이는 것</label>
+      <select class="f-input" id="concern">
+        <option value="">선택해주세요</option>
+        <option value="q1">요즘 나는 괜찮은 사람인 척 하고 있는 것 같다</option>
+        <option value="q2">연애를 해도 결국 내가 더 매달리는 쪽이 된다</option>
+        <option value="q3">이성에게 끌리긴 하는데, 깊어지면 멀어지게 된다</option>
+        <option value="q4">사람들이 나를 좋아는 하는데, 진짜 나를 아는 느낌은 없다</option>
+        <option value="q5">가끔은 내가 사랑받을 수 있는 사람인지 의심된다</option>
+      </select>
+    </div>
+    <p class="f-notice"><strong>업로드된 사진은 분석 후 즉시 삭제됩니다</strong></p>
+    <div style="margin-top:14px;background:rgba(139,83,254,.05);border:1px solid var(--border-p);border-radius:12px;padding:13px 16px;">
+      <div style="font-size:11px;color:var(--lime);letter-spacing:.1em;margin-bottom:6px">📸 어떤 사진이 좋은가요?</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8">정면을 바라보는 사진 · 얼굴 전체가 보이는 사진<br>선글라스·마스크 없이 · 밝은 조명 권장<br>필터가 강한 사진은 정확도가 낮아질 수 있어요</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE 4 — AURA CARD (generated) ══ -->
+<div class="page" id="pg-3" style="align-items:center">
+  <div class="eyebrow" style="text-align:center">AURA DETECTED</div>
+  <h2 class="pg-title" style="text-align:center;font-size:clamp(20px,5vw,30px);margin-bottom:32px">당신의 아우라는<br>'<span id="aura-type-label">집착 유발형</span>'입니다</h2>
+
+  <div class="aura-card-section">
+    <!-- GENERATED AURA CARD -->
+    <div class="aura-card-wrap">
+      <canvas id="aura-card-canvas"></canvas>
+      <div class="aura-card-blur" id="aura-blur"></div>
+    </div>
+
+    <div class="aura-type-name" id="aura-type-name">— 에너지 파동형 —</div>
+
+    <div class="color-reveal-label">— 아우라 컬러 일부 공개 —</div>
+    <div class="color-chips">
+      <div class="color-chip">
+        <div class="cdot" id="main-cdot" style="background:#c84fff;box-shadow:0 0 9px #c84fff;"></div>
+        <div><div style="font-size:12px;font-weight:700;">메인</div><div class="chex" id="main-chex">#C84FFF</div></div>
+      </div>
+      <div class="color-chip">
+        <div class="cdot" id="sub-cdot" style="background:#8eff01;box-shadow:0 0 9px #8eff01;"></div>
+        <div><div style="font-size:12px;font-weight:700;">서브</div><div class="chex" id="sub-chex">#8EFF01</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4P 분석 문장 -->
+  <div class="analysis-lines" style="margin-top:24px">
+
+    <div class="aline aline-first">
+      <span class="aline-name" id="al-name1">당신</span>님의 아우라 분석 결과,<br>
+      외면으로 흐르는 에너지와 실제 내면 반응 방식 사이에 <strong>차이가 있습니다.</strong>
+    </div>
+
+    <div class="aline">
+      <span class="aline-blur" id="aura-extra-color">"짙은 블루베리빛 오로라"</span>는
+      감히 넘볼 수 없을 것 같았던 상대를 결국 <strong>집착하게 만드는 경향</strong>이 있습니다.<br>
+      <span style="color:var(--muted);font-size:13px">그리고 그 흐름은, 당신이 인식하든 못 하든 반복되고 있습니다.</span>
+    </div>
+
+    <div class="aline">
+      앞으로 <span class="aline-blur">"3년"</span> 후 근본적인 아우라의 흐름에 변동이 있을 예정입니다.<br>
+      이는 특히 <span class="aline-blur" id="aura-change-area">"금전, 연애 관계"</span>에서 크게 나타날 예정입니다.
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ PAGE 5 — RESULT CARDS ══ -->
+<div class="page" id="pg-4" style="align-items:center">
+  <div class="eyebrow" style="text-align:center">일부 공개</div>
+  <h2 class="pg-title" style="text-align:center;font-size:clamp(18px,5vw,26px);margin-bottom:0px">당신이 알고 있는 당신과,<br>실제로 작동하는 당신은 다릅니다</h2>
+  <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:20px;margin-bottom:20px;line-height:1.7">아래 내용은 일부만 공개됩니다</p>
+
+  <div class="result-cards">
+
+    <!-- 1. 기본 구조 -->
+    <div class="res-card">
+      <div class="res-label">🔒 기본 구조</div>
+      <div class="res-title">성격 / 기질 / 무의식</div>
+      <div class="res-preview"><span class="p5-name" id="p5n1">당신</span>은 스스로를 다 안다고 생각하지만,<br>실제로는 특정한 방식으로만 반복되고 있습니다.</div>
+      <div class="blur-wrap"><div class="blur-txt" id="p5-basic-blur">당신의 기본 에너지 구조는 겉으로 드러나는 것과 내부에서 작동하는 방식이 다릅니다. 이 차이가 스스로도 설명하기 어려운 감정과 선택을 반복하게 만드는 근본 원인입니다. 특히 압박을 받는 상황에서 본래의 성향이 더 강하게 표면화되며...</div><div class="blur-over"><div class="lock-chip">🔒 결제 후 열람</div></div></div>
+    </div>
+
+    <!-- 2. 사람을 끌어당기는 방식 -->
+    <div class="res-card">
+      <div class="res-label">🔒 사람을 끌어당기는 방식</div>
+      <div class="res-title">매력 / 도화 / 첫인상</div>
+      <div class="score-row"><div class="s-bar"><div class="s-fill" id="dohwa-fill" style="width:0%"></div></div><div class="s-num" id="dohwa-score">— / 100</div></div>
+      <div class="res-preview">
+        "<span class="color-inline" id="p5-main-color">██████</span>" 와 "<span class="color-inline" id="p5-sub-color">██████</span>" 는 '충돌'을 의미합니다.<br>
+        '거리감'과 '호기심'은 상대로 하여금 나를&nbsp;<span class="mini-blur">집착하게 만들</span> 수 있습니다.
+      </div>
+      <div class="blur-wrap"><div class="blur-txt" id="p5-attract-blur">이 에너지 조합은 상대가 처음에는 접근하기 어렵다고 느끼게 만들지만, 일단 가까워지면 강하게 끌어당기는 구조입니다. 도화살의 위치와 강도에 따라 이성이 먼저 연락해오는 패턴이 반복되며...</div><div class="blur-over"><div class="lock-chip">🔒 결제 후 열람</div></div></div>
+    </div>
+
+    <!-- 3. 관계에서의 패턴 -->
+    <div class="res-card">
+      <div class="res-label">🔒 관계에서의 패턴</div>
+      <div class="res-title">연애 / 친구 / 직장</div>
+      <div class="res-preview">가까워질수록 드러나는 <span class="p5-name" id="p5n2">당신</span>의 반응 방식은,<br>상호 관계의 흐름을 일정하게 바꾸는 경향이 있습니다.</div>
+      <div class="blur-wrap"><div class="blur-txt" id="p5-rel-blur">친밀감이 형성될수록 당신의 진짜 에너지 패턴이 드러나기 시작합니다. 이 시점에서 관계가 깊어지거나 반대로 갑작스럽게 멀어지는 경우가 반복됩니다. 특히 감정적으로 의존하게 되는 시점이...</div><div class="blur-over"><div class="lock-chip">🔒 결제 후 열람</div></div></div>
+    </div>
+
+    <!-- 4. 반복되는 문제 -->
+    <div class="res-card">
+      <div class="res-label">🔒 반복되는 문제</div>
+      <div class="res-title">왜 같은 상황이 반복되는지</div>
+      <div class="res-preview">
+        <span class="p5-name" id="p5n3">당신</span>의 아우라에는 '노력'과 연결된 <span class="color-inline" id="p5-help-color">██████</span>가 있습니다.<br>
+        하지만 <span class="color-inline" id="p5-block-color">██████</span>가 이 순간의 판단력을 자꾸 흔듭니다.
+      </div>
+      <div class="blur-wrap"><div class="blur-txt" id="p5-prob-blur">이 충돌 구조가 반복되는 실패 패턴의 핵심입니다. 분명히 노력하는데 결과가 따라오지 않는 느낌, 또는 중요한 순간에 이상한 선택을 하게 되는 것이 이 에너지 충돌에서 비롯됩니다...</div><div class="blur-over"><div class="lock-chip">🔒 결제 후 열람</div></div></div>
+    </div>
+
+    <!-- 5. 숨겨진 본능 -->
+    <div class="res-card" style="border-color:rgba(255,80,80,.25);background:rgba(255,50,50,.04)">
+      <div class="res-label" style="color:#ff8080">🔥 숨겨진 본능</div>
+      <div class="res-title">감정 + 욕망</div>
+      <div class="res-preview"><span class="p5-name" id="p5n4">당신</span>님, 가끔 <span class="mini-blur">그러고 싶다</span>는 생각... 안 드시나요?</div>
+      <div class="blur-wrap"><div class="blur-txt" id="p5-instinct-blur">표면적으로는 드러내지 않지만 내면에서 강하게 작동하는 본능적 성향이 있습니다. 이것은 감정이 깊어지는 순간 특히 강하게 발현되며 상대를 놀라게 만드는 경우가 있습니다. 관계에서 주도권을 원하는 욕망과...</div><div class="blur-over"><div class="lock-chip">🔒 성인 · 결제 후 열람</div></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ PAGE 6 — LOCKED LIST + PERSUASION ══ -->
+<div class="page" id="pg-5" style="align-items:center">
+  <div class="eyebrow" style="text-align:center">잠긴 영역</div>
+  <h2 class="pg-title" style="text-align:center;font-size:clamp(20px,5vw,30px)">여기서부터는<br>대부분이 예상과 다릅니다</h2>
+  <p class="pg-sub" style="text-align:center">특히, 이 부분은 <strong>스스로도 인정하기 어려워하는 영역</strong>입니다.</p>
+
+  <div class="locked-list" style="margin-bottom:18px">
+    <div class="locked-item"><div class="lock-emoji">🧲</div><div class="lock-text">당신에게 빠지는 사람의 특징과 유형</div></div>
+    <div class="locked-item"><div class="lock-emoji">🔁</div><div class="lock-text">반복되는 연애 패턴과 그 이유</div></div>
+    <div class="locked-item"><div class="lock-emoji">💔</div><div class="lock-text">관계가 무너지는 결정적인 순간</div></div>
+    <div class="locked-item"><div class="lock-emoji">🌊</div><div class="lock-text">감정이 깊어질수록 바뀌는 당신의 태도</div></div>
+    <div class="locked-item fire"><div class="lock-emoji">🔥</div><div class="lock-text" style="color:rgba(255,150,100,.35)">숨겨진 본능적 성향 (19금)</div><div class="fire-badge">🔒 성인 잠금</div></div>
+  </div>
+
+  <div class="key-box">
+    지금까지 본 건 일부입니다.<br>당신의 진짜 패턴은 <strong style="color:var(--lime)">아직 열리지 않았습니다.</strong>
+    <em>지금까지는 '느낌'이었다면, 여기서부터는 '확인'입니다.</em>
+  </div>
+  <div style="height:16px"></div>
+  <button class="btn-next" style="max-width:380px;width:100%" onclick="openPaySheet()">
+    👉 숨겨진 진실 열어보기
+  </button>
+  <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.7">
+    이 결과는 지금 이 상태의 당신을 기준으로 생성됩니다.<br>같은 결과는 다시 얻을 수 없습니다.
+  </p>
+</div>
+
+
+
+<!-- PAYMENT BOTTOM SHEET -->
+<div id="pay-sheet">
+  <div id="pay-backdrop" onclick="closePaySheet()"></div>
+  <div id="pay-body">
+
+    <!-- 후기 슬라이더 -->
+    <div id="review-slider" style="margin-bottom:16px;position:relative;height:128px;overflow:hidden;">
+      <div id="review-a" class="rv-slot"></div>
+      <div id="review-b" class="rv-slot"></div>
+    </div>
+
+    <!-- 결제 박스 -->
+    <div style="background:linear-gradient(135deg,rgba(142,255,1,.04),rgba(139,83,254,.06));border:1px solid var(--border);border-radius:18px;padding:20px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--lime),var(--purple),transparent);"></div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-decoration:line-through;margin-bottom:2px;">정가 29,900원</div>
+          <div style="font-family:'Noto Serif KR',serif;font-size:38px;font-weight:900;color:var(--lime);line-height:1;text-shadow:0 0 28px rgba(142,255,1,.35);">₩12,900</div>
+        </div>
+        <div style="background:rgba(142,255,1,.12);border:1px solid var(--border);padding:5px 12px;border-radius:100px;font-size:10px;letter-spacing:.1em;color:var(--lime);">🌟 베타 한정가</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+        <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:rgba(240,238,255,.85);">
+          <span style="color:var(--lime);flex-shrink:0;">✓</span>
+          <span>당신만의 아우라 카드 완전 공개 + 고화질</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:rgba(240,238,255,.85);">
+          <span style="color:var(--lime);flex-shrink:0;">✓</span>
+          <span>진짜 성격 구조 + 매력 코드 완전 해석</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:rgba(240,238,255,.85);">
+          <span style="color:var(--lime);flex-shrink:0;">✓</span>
+          <span>반복되는 패턴의 원인 + 방해 요소 분석</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#ff9090;">
+          <span style="flex-shrink:0;">🔥</span>
+          <span>숨겨진 욕망과 본능까지 공개 (19금)</span>
+        </div>
+      </div>
+
+      <button class="btn-next" onclick="handleSubmit()" style="width:100%;margin-bottom:10px;font-size:15px;">
+        👉 숨겨진 진실 전체 열어보기
+      </button>
+      <div style="display:flex;align-items:center;justify-content:center;gap:5px;font-size:11px;color:var(--muted);">
+        <div style="width:5px;height:5px;background:#ff4444;border-radius:50%;animation:bdot 1s infinite;"></div>
+        지금 <strong style="color:white;margin:0 3px;" id="urgency-num">47명</strong> 분석 중 · 1회 결제 · 즉시 열람
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:14px;">
+      <button onclick="closePaySheet()" style="background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;padding:6px 20px;">닫기</button>
+    </div>
+  </div>
+</div>
+<!-- BOTTOM NAV -->
+<div class="bottom-nav" id="bottom-nav">
+  <div class="live-txt">지금 <span id="live-count">47명</span>이 분석 중</div>
+  <div class="nav-btns">
+    <button class="btn-ghost" id="btn-prev" onclick="changePage(-1)">←</button>
+    <button class="btn-next" id="btn-next-nav" onclick="changePage(1)">다음 →</button>
+  </div>
+</div>
+
+<script>
+// ── AURA DATA ──
+const AURA_TYPES = [
+  { type:'집착 유발형', name:'딥 블루베리 인디고', main:'#9b30ff', sub:'#8eff01', mainHex:'#9B30FF', subHex:'#8EFF01',
+    shape:'wave', dohwa:88,
+    quote:'"나를 잊지 마. 네가 나를 잊으면, 나는 세상 어디에도 없는 사람이 되어버리니까."',
+    quoteSrc:'— 무라카미 하루키, 『상실의 시대』 / 당신의 아우라가 상대에게 남기는 잔상',
+    extraColor:'"짙은 블루베리빛 오로라"' },
+  { type:'불꽃 유인형', name:'다크 체리 크림슨', main:'#ff3355', sub:'#ff12900', mainHex:'#FF3355', subHex:'#FF12900',
+    shape:'sharp', dohwa:82,
+    quote:'"당신이 타오를 때, 주변 모든 것이 당신만을 바라보게 된다."',
+    quoteSrc:'— 아우라 해석 / 불꽃이 만드는 자기장',
+    extraColor:'"타오르는 크림슨 코어"' },
+  { type:'신비 흡인형', name:'미드나잇 바이올렛', main:'#4455ff', sub:'#00ddff', mainHex:'#4455FF', subHex:'#00DDFF',
+    shape:'fluid', dohwa:74,
+    quote:'"그 사람 옆에 있으면 이상하게 시간이 느리게 간다. 그 느낌이 뭔지 알 수가 없었다."',
+    quoteSrc:'— 아우라 해석 / 미지의 끌림이 만드는 구조',
+    extraColor:'"깊은 인디고 안개"' },
+  { type:'잠재 폭발형', name:'네온 라임 그린', main:'#8eff01', sub:'#ff00aa', mainHex:'#8EFF01', subHex:'#FF00AA',
+    shape:'electric', dohwa:79,
+    quote:'"잠자고 있을 때 더 위험하다. 깨어나는 순간, 모든 것이 달라진다."',
+    quoteSrc:'— 아우라 해석 / 잠재된 에너지의 폭발 구조',
+    extraColor:'"네온 그린 전류"' },
+  { type:'공명 유발형', name:'번트 앰버 코랄', main:'#ff6644', sub:'#00bbaa', mainHex:'#FF6644', subHex:'#00BBAA',
+    shape:'organic', dohwa:71,
+    quote:'"어떤 사람들은 존재 자체만으로 방 안의 공기를 바꾼다."',
+    quoteSrc:'— 아우라 해석 / 공간을 물드는 에너지',
+    extraColor:'"따뜻한 코랄 파동"' },
+  { type:'심층 침투형', name:'러스티 테라코타', main:'#cc8800', sub:'#8b53fe', mainHex:'#CC8800', subHex:'#8B53FE',
+    shape:'deep', dohwa:85,
+    quote:'"천천히, 그러나 확실하게. 어느 순간 당신이 그 사람의 전부가 되어있었다."',
+    quoteSrc:'— 아우라 해석 / 깊게 스며드는 매력 구조',
+    extraColor:'"앰버 골드 코어"' },
+  { type:'순간 포획형', name:'프로스티드 로즈 헤이즈', main:'#ff44aa', sub:'#ffee00', mainHex:'#FF44AA', subHex:'#FFEE00',
+    shape:'burst', dohwa:77,
+    quote:'"그 사람을 처음 봤을 때, 나는 이미 알고 있었다."',
+    quoteSrc:'— 아우라 해석 / 첫인상이 결정하는 에너지',
+    extraColor:'"핑크 번개 에너지"' },
+];
+
+let selectedAura = AURA_TYPES[0];
+let userData = {};
+let photoBase64 = null;
+
+function getAuraFromBirth(dateStr) {
+  if (!dateStr) return AURA_TYPES[0];
+  const d = new Date(dateStr);
+  const seed = (d.getFullYear() + d.getMonth() + d.getDate()) % AURA_TYPES.length;
+  return AURA_TYPES[seed];
+}
+
+function onInputChange() {
+  const birth = document.getElementById('birthDate').value;
+  if (birth) selectedAura = getAuraFromBirth(birth);
+}
+
+// ── AURA CARD CANVAS GENERATOR ──
+function generateAuraCard(aura, canvas) {
+  const W = canvas.width = 600;
+  const H = canvas.height = 800;
+  const ctx = canvas.getContext('2d');
+
+  const seed = hashStr(aura.main + aura.sub);
+  const rng = makeRNG(seed);
+
+  ctx.fillStyle = '#05030e';
+  ctx.fillRect(0, 0, W, H);
+
+  const shape = aura.shape;
+  const c1 = aura.main, c2 = aura.sub;
+
+  if (shape === 'wave') {
+    drawWaveAura(ctx, W, H, c1, c2, rng);
+  } else if (shape === 'sharp') {
+    drawSharpAura(ctx, W, H, c1, c2, rng);
+  } else if (shape === 'fluid') {
+    drawFluidAura(ctx, W, H, c1, c2, rng);
+  } else if (shape === 'electric') {
+    drawElectricAura(ctx, W, H, c1, c2, rng);
+  } else if (shape === 'organic') {
+    drawOrganicAura(ctx, W, H, c1, c2, rng);
+  } else if (shape === 'deep') {
+    drawDeepAura(ctx, W, H, c1, c2, rng);
+  } else {
+    drawBurstAura(ctx, W, H, c1, c2, rng);
+  }
+
+  // Watermark
+  ctx.font = '500 18px Noto Serif KR, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.textAlign = 'center';
+  ctx.fillText('AURA', W/2, H - 24);
+}
+
+function drawWaveAura(ctx, W, H, c1, c2, rng) {
+  for (let i = 0; i < 8; i++) {
+    const freq = 0.008 + rng() * 0.006;
+    const amp = 80 + rng() * 120;
+    const phase = rng() * Math.PI * 2;
+    const yBase = 100 + i * (H / 8);
+    const col = i % 2 === 0 ? c1 : c2;
+    const g = ctx.createLinearGradient(0, yBase - amp, 0, yBase + amp);
+    g.addColorStop(0, col + '00');
+    g.addColorStop(0.5, col + 'cc');
+    g.addColorStop(1, col + '00');
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 3) {
+      const y = yBase + Math.sin(x * freq + phase) * amp + Math.cos(x * freq * 0.6 + phase * 1.3) * amp * 0.4;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2 + rng() * 3;
+    ctx.globalAlpha = 0.3 + rng() * 0.4;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 20 + rng() * 30;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  addGlowBlobs(ctx, W, H, c1, c2, rng, 5);
+}
+
+function drawSharpAura(ctx, W, H, c1, c2, rng) {
+  for (let i = 0; i < 12; i++) {
+    const x1 = rng() * W, y1 = rng() * H;
+    const x2 = rng() * W, y2 = rng() * H;
+    const col = rng() > 0.5 ? c1 : c2;
+    const g = ctx.createLinearGradient(x1, y1, x2, y2);
+    g.addColorStop(0, col + '00');
+    g.addColorStop(0.5, col + 'ee');
+    g.addColorStop(1, col + '00');
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    const mx = (x1 + x2) / 2 + (rng() - 0.5) * 200;
+    const my = (y1 + y2) / 2 + (rng() - 0.5) * 200;
+    ctx.quadraticCurveTo(mx, my, x2, y2);
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 1 + rng() * 4;
+    ctx.globalAlpha = 0.4 + rng() * 0.5;
+    ctx.shadowColor = col; ctx.shadowBlur = 15 + rng() * 25;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  addGlowBlobs(ctx, W, H, c1, c2, rng, 4);
+}
+
+function drawFluidAura(ctx, W, H, c1, c2, rng) {
+  for (let i = 0; i < 6; i++) {
+    const cx = W * (0.2 + rng() * 0.6), cy = H * (0.15 + rng() * 0.7);
+    const rx = 100 + rng() * 200, ry = 150 + rng() * 250;
+    const col = i % 2 === 0 ? c1 : c2;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
+    g.addColorStop(0, col + 'aa');
+    g.addColorStop(0.6, col + '44');
+    g.addColorStop(1, col + '00');
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(rng() * Math.PI);
+    ctx.scale(rx / Math.max(rx,ry), ry / Math.max(rx,ry));
+    ctx.beginPath(); ctx.arc(0, 0, Math.max(rx,ry), 0, Math.PI*2);
+    ctx.fillStyle = g;
+    ctx.globalAlpha = 0.5 + rng() * 0.3;
+    ctx.fill(); ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  addGlowBlobs(ctx, W, H, c1, c2, rng, 3);
+}
+
+function drawElectricAura(ctx, W, H, c1, c2, rng) {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 5; i++) {
+    const y = H * (0.1 + i * 0.18 + rng() * 0.05);
+    const col = i % 2 === 0 ? c1 : c2;
+    const g = ctx.createRadialGradient(W/2, y, 10, W/2, y, W * 0.6);
+    g.addColorStop(0, col + 'ff');
+    g.addColorStop(0.3, col + '88');
+    g.addColorStop(1, col + '00');
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 2) {
+      const yOff = Math.sin(x * 0.02 + rng() * 0.5) * 30 + Math.sin(x * 0.008) * 50;
+      x === 0 ? ctx.moveTo(x, y + yOff) : ctx.lineTo(x, y + yOff);
+    }
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 3 + rng() * 4;
+    ctx.globalAlpha = 0.7 + rng() * 0.3;
+    ctx.shadowColor = col; ctx.shadowBlur = 30;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+}
+
+function drawOrganicAura(ctx, W, H, c1, c2, rng) {
+  for (let layer = 0; layer < 7; layer++) {
+    const pts = [];
+    const n = 6 + Math.floor(rng() * 4);
+    for (let i = 0; i < n; i++) {
+      pts.push({ x: rng() * W, y: rng() * H });
+    }
+    const col = layer % 2 === 0 ? c1 : c2;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length - 1; i++) {
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, (pts[i].x + pts[i+1].x)/2, (pts[i].y + pts[i+1].y)/2);
+    }
+    ctx.quadraticCurveTo(pts[pts.length-1].x, pts[pts.length-1].y, pts[0].x, pts[0].y);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2 + rng() * 5;
+    ctx.globalAlpha = 0.2 + rng() * 0.4;
+    ctx.shadowColor = col; ctx.shadowBlur = 20 + rng() * 20;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  addGlowBlobs(ctx, W, H, c1, c2, rng, 5);
+}
+
+function drawDeepAura(ctx, W, H, c1, c2, rng) {
+  for (let i = 0; i < 10; i++) {
+    const cx = W/2 + (rng() - 0.5) * W * 0.5;
+    const cy = H/2 + (rng() - 0.5) * H * 0.5;
+    const r = 80 + rng() * 200;
+    const col = rng() > 0.5 ? c1 : c2;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, col + 'cc'); g.addColorStop(1, col + '00');
+    ctx.fillStyle = g; ctx.globalAlpha = 0.3 + rng() * 0.4;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBurstAura(ctx, W, H, c1, c2, rng) {
+  const cx = W/2, cy = H/2;
+  for (let i = 0; i < 16; i++) {
+    const angle = (i / 16) * Math.PI * 2 + rng() * 0.3;
+    const len = 150 + rng() * 250;
+    const col = i % 2 === 0 ? c1 : c2;
+    const g = ctx.createLinearGradient(cx, cy, cx + Math.cos(angle)*len, cy + Math.sin(angle)*len);
+    g.addColorStop(0, col + 'ff'); g.addColorStop(1, col + '00');
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle)*len, cy + Math.sin(angle)*len);
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 2 + rng() * 6;
+    ctx.globalAlpha = 0.4 + rng() * 0.5;
+    ctx.shadowColor = col; ctx.shadowBlur = 20;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  addGlowBlobs(ctx, W, H, c1, c2, rng, 3);
+}
+
+function addGlowBlobs(ctx, W, H, c1, c2, rng, count) {
+  for (let i = 0; i < count; i++) {
+    const x = rng() * W, y = rng() * H, r = 80 + rng() * 150;
+    const col = rng() > 0.5 ? c1 : c2;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, col + '66'); g.addColorStop(1, col + '00');
+    ctx.fillStyle = g; ctx.globalAlpha = 0.4 + rng() * 0.35;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function hashStr(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) + s.charCodeAt(i);
+  return Math.abs(h);
+}
+
+function makeRNG(seed) {
+  let s = seed;
+  return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+}
+
+// ── BG ──
+const bgC = document.getElementById('bg-canvas'), bgX = bgC.getContext('2d');
+let W, H, T = 0;
+function rzBg() { W = bgC.width = innerWidth; H = bgC.height = innerHeight; }
+rzBg(); addEventListener('resize', rzBg);
+function drawBg() {
+  bgX.fillStyle='#080b10'; bgX.fillRect(0,0,W,H);
+  [{c:'rgba(139,83,254,.18)',s:.27,a:.15,f:1.5,y:.4},{c:'rgba(142,255,1,.07)',s:.18,a:.11,f:2.1,y:.52},{c:'rgba(100,20,200,.14)',s:.34,a:.17,f:1.0,y:.63},{c:'rgba(80,10,160,.12)',s:.13,a:.19,f:.85,y:.27}].forEach(w=>{
+    bgX.beginPath();
+    for(let x=0;x<=W;x+=5){const y=H*w.y+Math.sin(x*w.f*.004+T*w.s)*H*w.a+Math.cos(x*.003+T*w.s*.65)*H*w.a*.45;x?bgX.lineTo(x,y):bgX.moveTo(x,y);}
+    bgX.lineTo(W,H);bgX.lineTo(0,H);bgX.closePath();
+    const g=bgX.createLinearGradient(0,0,0,H);g.addColorStop(0,w.c);g.addColorStop(1,'transparent');bgX.fillStyle=g;bgX.fill();
+  });
+  [{x:.25,y:.28,r:.26,c:'rgba(139,83,254,.08)'},{x:.75,y:.65,r:.21,c:'rgba(142,255,1,.05)'},{x:.5,y:.8,r:.27,c:'rgba(100,20,200,.06)'}].forEach((o,i)=>{
+    const x=W*o.x+Math.sin(T*.18+i*2)*W*.04,y=H*o.y+Math.cos(T*.13+i)*H*.04,r=Math.min(W,H)*o.r;
+    const g=bgX.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,o.c);g.addColorStop(1,'transparent');bgX.fillStyle=g;bgX.beginPath();bgX.arc(x,y,r,0,Math.PI*2);bgX.fill();
+  });
+  T+=.007;requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// PARTICLES
+const pc=document.getElementById('particles');
+for(let i=0;i<16;i++){const p=document.createElement('div');p.className='particle';p.style.cssText=`left:${Math.random()*100}%;bottom:${Math.random()*20}%;background:${Math.random()>.5?'#8eff01':'#8b53fe'};width:${Math.random()*2+1}px;height:${Math.random()*2+1}px;animation-duration:${Math.random()*8+6}s;animation-delay:${Math.random()*6}s;opacity:${Math.random()*.5+.15};box-shadow:0 0 4px ${Math.random()>.5?'#8eff01':'#8b53fe'};`;pc.appendChild(p);}
+
+// ── PAGES ──
+const TOTAL = 6;
+let cur = 0;
+
+const dotsWrap = document.getElementById('pdots');
+for(let i=0;i<TOTAL;i++){
+  const d=document.createElement('div');d.className='pdot'+(i===0?' active':'');
+  d.onclick=()=>goTo(i);dotsWrap.appendChild(d);
+}
+
+function updateUI(){
+  document.getElementById('prog').style.width=((cur+1)/TOTAL*100)+'%';
+  document.querySelectorAll('.pdot').forEach((d,i)=>{d.className='pdot'+(i===cur?' active':i<cur?' done':'');});
+  const prev=document.getElementById('btn-prev');
+  const next=document.getElementById('btn-next-nav');
+  prev.style.display=cur===0?'none':'block';
+
+  // Page 3 (form) — next btn triggers analysis
+  if(cur===2){
+    next.textContent='👉 분석 시작하기';
+    next.onclick=startAnalysis;
+  } else if(cur===TOTAL-1){
+    // 마지막 페이지 — 하단 네비 버튼 숨기고 페이지 내 버튼만 사용
+    next.style.display='none';
+    prev.style.display='block';
+    return;
+  } else {
+    next.style.display='';
+    next.textContent='다음 →';
+    next.onclick=()=>changePage(1);
+  }
+  next.style.display='';
+}
+
+function goTo(n, dir) {
+  if(n<0||n>=TOTAL||n===cur)return;
+  const oldPg=document.getElementById('pg-'+cur);
+  const newPg=document.getElementById('pg-'+n);
+  const fwd=dir!==undefined?dir>0:n>cur;
+  oldPg.classList.remove('active');
+  oldPg.classList.add(fwd?'exit-up':'exit-down');
+  setTimeout(()=>oldPg.classList.remove('exit-up','exit-down'),650);
+  cur=n;newPg.scrollTop=0;newPg.classList.add('active');
+  updateUI();
+}
+function changePage(dir){goTo(cur+dir,dir);}
+
+// Swipe
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'||e.key==='ArrowRight')changePage(1);
+  if(e.key==='ArrowUp'||e.key==='ArrowLeft')changePage(-1);
+});
+updateUI();
+
+// ── ANALYSIS + LOADING ──
+let loadT2=0, loadAnim2;
+
+function drawLoadOrb(){
+  const c=document.getElementById('load-canvas'),x=c.getContext('2d');
+  x.clearRect(0,0,90,90);
+  for(let i=0;i<5;i++){
+    const a=(i/5)*Math.PI*2+loadT2;
+    const cs=['#8eff01','#8b53fe','#cc55ff','#44ffcc','#8b53fe'];
+    const px=45+Math.cos(a)*28,py=45+Math.sin(a)*28;
+    const g=x.createRadialGradient(px,py,0,px,py,38);
+    g.addColorStop(0,cs[i]+'88');g.addColorStop(1,'transparent');
+    x.fillStyle=g;x.beginPath();x.arc(45,45,45,0,Math.PI*2);x.fill();
+  }
+  loadT2+=.04;loadAnim2=requestAnimationFrame(drawLoadOrb);
+}
+
+function startAnalysis(){
+  const birth=document.getElementById('birthDate').value;
+  if(!photoBase64){
+    alert('사진을 먼저 업로드해주세요\n정확한 관상 분석을 위해 사진이 필요합니다');
+    return;
+  }
+  if(!birth){alert('생년월일을 입력해주세요');return;}
+  userData.birth=birth;
+  userData.time=document.getElementById('birthTime').value;
+  userData.blood=document.getElementById('bloodType').value;
+  userData.concern=document.getElementById('concern').value;
+  selectedAura=getAuraFromBirth(birth);
+
+  const ls=document.getElementById('loading-screen');
+  ls.classList.add('on');
+  drawLoadOrb();
+
+  const MSGS=[
+    '사주 오행에서 당신의 지배색을<br>추출하는 중',
+    '당신의 에너지 파동 형태를<br>시각적 패턴으로 변환하는 중',
+    '아우라 컬러를 결정하는<br>요소들을 하나씩 확인하는 중',
+    '같은 색이라도<br>어떤 패턴으로 흐르느냐에 따라<br>전혀 다른 매력이 만들어집니다',
+    '스스로도 설명 못 했던 선택들의 이유가<br>지금 형태를 갖추고 있습니다',
+  ];
+
+  const bar=document.getElementById('load-bar');
+  const txt=document.getElementById('load-txt');
+  const warn=document.getElementById('load-warn');
+  let msgIdx=0;
+
+  function showMsg(){
+    txt.style.transition='opacity .4s ease';
+    txt.style.opacity='0';
+    setTimeout(()=>{
+      txt.innerHTML=MSGS[msgIdx]||MSGS[MSGS.length-1];
+      bar.style.width=Math.min((msgIdx+1)/MSGS.length*85,85)+'%';
+      msgIdx++;
+      setTimeout(()=>{ txt.style.opacity='1'; }, 50);
+    },420);
+  }
+
+  txt.style.opacity='0';
+  setTimeout(()=>{ showMsg(); }, 100);
+  const ticker=setInterval(()=>{
+    if(msgIdx<MSGS.length){
+      showMsg();
+    } else {
+      clearInterval(ticker);
+      bar.style.width='100%';
+      warn.textContent='⚠️ 예상보다 복합적인 구조 감지됨';
+      warn.classList.add('on');
+      setTimeout(()=>{
+        cancelAnimationFrame(loadAnim2);
+        ls.classList.remove('on');
+        warn.classList.remove('on');
+        txt.style.opacity='1';
+        renderAuraPage();
+        goTo(3,1);
+      },1200);
+    }
+  },3000);
+}
+
+function renderAuraPage(){
+  const a=selectedAura;
+
+  // 헬퍼: null 안전하게 값 설정
+  function $set(id, val, prop='textContent') {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (prop === 'textContent') el.textContent = val;
+    else if (prop === 'innerHTML') el.innerHTML = val;
+    else el.style.cssText = val;
+  }
+  function $style(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.style.cssText = val;
+  }
+
+  // 이름
+  const name = (document.getElementById('userName') && document.getElementById('userName').value.trim()) || '당신';
+  document.querySelectorAll('.p5-name, #al-name1, #pg4-name').forEach(el => el.textContent = name);
+
+  // 타입 라벨 (블러)
+  const typeLabel = document.getElementById('aura-type-label');
+  if (typeLabel) {
+    typeLabel.textContent = a.type;
+    typeLabel.style.filter = 'blur(5px)';
+    typeLabel.style.webkitFilter = 'blur(5px)';
+    typeLabel.style.userSelect = 'none';
+  }
+  $set('aura-type-name', '— '+a.name+' —');
+
+  // 트리오 컬러 (카드 아래)
+  $style('main-cdot-trio', `background:${a.main};box-shadow:0 0 10px ${a.main};width:24px;height:24px;border-radius:50%;`);
+  $style('sub-cdot-trio', `background:${a.sub};box-shadow:0 0 10px ${a.sub};width:24px;height:24px;border-radius:50%;`);
+  $set('main-chex-trio', a.mainHex);
+  $set('sub-chex-trio', a.subHex);
+  const patternNames = {wave:'파동형',sharp:'날카로운형',fluid:'유동형',electric:'전류형',organic:'유기형',deep:'심층형',burst:'방사형'};
+  $set('pattern-label-trio', patternNames[a.shape] || '파동형');
+
+  // 패턴 미니 캔버스
+  const mc = document.getElementById('pattern-mini-canvas');
+  if (mc) {
+    const mx = mc.getContext('2d');
+    mx.clearRect(0,0,36,36);
+    const rng2 = makeRNG(hashStr(a.main+a.sub));
+    for(let i=0;i<4;i++){
+      const x=rng2()*36,y=rng2()*36,r=6+rng2()*10,col=i%2?a.sub:a.main;
+      const g=mx.createRadialGradient(x,y,0,x,y,r);
+      g.addColorStop(0,col+'aa');g.addColorStop(1,col+'00');
+      mx.fillStyle=g;mx.globalAlpha=.7+rng2()*.3;
+      mx.beginPath();mx.arc(x,y,r,0,Math.PI*2);mx.fill();
+    }
+    mx.globalAlpha=1;
+  }
+
+  // 인용구 & 분석 문장
+  $set('aura-quote', a.quote);
+  $set('aura-quote-src', '— '+a.quoteSrc);
+  $set('aura-extra-color', '"'+a.extraColor+'"');
+
+  // 4P 변동 영역 (사주별로 다르게)
+  const changeAreas = {
+    '집착 유발형':'금전, 연애 관계','불꽃 유인형':'커리어, 인간관계',
+    '신비 흡인형':'연애, 감정 패턴','잠재 폭발형':'자기표현, 연애',
+    '공명 유발형':'친밀한 관계, 건강','심층 침투형':'금전, 진로',
+    '순간 포획형':'연애, 자존감'
+  };
+  $set('aura-change-area', '"'+(changeAreas[a.type]||'금전, 연애 관계')+'"');
+
+  // 5P 컬러 인라인
+  $set('p5-main-color', a.mainHex);
+  $set('p5-sub-color', a.subHex);
+  $set('p5-help-color', a.mainHex);
+  $set('p5-block-color', a.subHex);
+
+  // 아우라 카드 생성
+  const canvas = document.getElementById('aura-card-canvas');
+  if (canvas) generateAuraCard(a, canvas);
+
+  // 도화살 점수
+  const fill = document.getElementById('dohwa-fill');
+  const score = document.getElementById('dohwa-score');
+  if (score) score.textContent = a.dohwa+' / 100';
+  if (fill) setTimeout(()=>{fill.style.transition='width 1.3s ease';fill.style.width=a.dohwa+'%';},300);
+}
+
+// ── LIVE COUNT ──
+setInterval(()=>{
+  const el=document.getElementById('live-count'),el2=document.getElementById('urgency-num');
+  const n=parseInt(el.textContent);
+  const nn=Math.max(40,Math.min(54,n+(Math.random()>.5?1:-1)));
+  el.textContent=nn;if(el2)el2.textContent=nn;
+},4000);
+
+// ── PHOTO ──
+function handlePhoto(e){
+  const f=e.target.files[0];if(!f)return;
+  const img=new Image();
+  const url=URL.createObjectURL(f);
+  img.onload=()=>{
+    const cv=document.createElement('canvas');
+    const MAX=1024;
+    let w=img.width,h=img.height;
+    if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+    cv.width=w;cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    const dataURL=cv.toDataURL('image/jpeg',0.85);
+    photoBase64=dataURL.split(',')[1];
+    document.getElementById('previewImg').src=dataURL;
+    document.getElementById('uploadPlaceholder').style.display='none';
+    document.getElementById('uploadPreview').style.display='block';
+    document.getElementById('uploadArea').classList.add('has-photo');
+    URL.revokeObjectURL(url);
+  };
+  img.src=url;
+}
+function removePhoto(e){
+  e.preventDefault();e.stopPropagation();
+  photoBase64=null;
+  document.getElementById('photoInput').value='';
+  document.getElementById('uploadPlaceholder').style.display='block';
+  document.getElementById('uploadPreview').style.display='none';
+  document.getElementById('uploadArea').classList.remove('has-photo');
+}
+
+// ── FAQ ──
+
+function openPaySheet(){
+  document.getElementById('pay-sheet').classList.add('on');
+  document.body.style.overflow='hidden';
+  setTimeout(initReviews, 100);
+}
+function closePaySheet(){
+  document.getElementById('pay-sheet').classList.remove('on');
+  document.body.style.overflow='';
+  if(reviewTimer){clearInterval(reviewTimer);reviewTimer=null;}
+}
+function toggleSheetFaq(el){
+  const item=el.parentElement,open=item.classList.contains('open');
+  document.querySelectorAll('.sheet-faq-item').forEach(i=>i.classList.remove('open'));
+  if(!open)item.classList.add('open');
+}
+
+
+// ── REVIEW DATA ──
+const REVIEWS = [
+  {name:'김ㅇㅇ',age:'24세',color:'conic-gradient(#8eff01,#8b53fe,#8eff01)',tc:'#080b10',
+   hi:'진짜 소름...',text:'솔직히 그냥 재미로 했는데 읽다가 멈췄어요. 왜 나 이러지 싶었던 게 다 나와있어서. 19금 파트는 혼자 새벽에 봤는데 좀 당황했음 ㅋㅋㅋ 근데 맞아서 더 당황'},
+  {name:'이ㅇㅇ',age:'19세',color:'conic-gradient(#ff6bff,#8b53fe,#ff6bff)',tc:'#fff',
+   hi:'내 아우라 카드 이뻐서 좋아요~~~~~~~~~~~~',text:'핸드폰 배경화면 해놔야지 희희 근데 진짜로 내용도 맞는거같아서 친구한테 보냈더니 쟤도 바로 함ㅋㅋㅋㅋ'},
+  {name:'박ㅇㅇ',age:'28세',color:'conic-gradient(#8eff01,#00d4ff,#8eff01)',tc:'#080b10',
+   hi:'어떻게 이걸 알죠',text:'전남친들이랑 왜 항상 같은패턴으로 끝났는지 여기 다 나와있었어요. 읽으면서 좀 무서웠음. 이거 그냥 테스트 아닌거 맞죠?'},
+  {name:'최ㅇㅇ',age:'22세',color:'conic-gradient(#ff9090,#ff44aa,#ff9090)',tc:'#fff',
+   hi:'생각보다 너무 정확해서 놀랐어요',text:'처음엔 에이 어떻게 맞겠어 했는데... 깊어지면 멀어진다는 부분이 완전 저였거든요. 지금 썸남한테도 그러고 있었는데 소름돋았음'},
+  {name:'정ㅇㅇ',age:'31세',color:'conic-gradient(#8b53fe,#4455ff,#8b53fe)',tc:'#fff',
+   hi:'12,900원인게 믿기지않음',text:'이거 진짜 몇만원짜리 상담보다 나은듯요.. 저 원래 이런거 안믿는데 읽다보니까 계속 고개가 끄덕여졌어요. 특히 제가 왜 맨날 비슷한 사람한테 끌리는지 그 이유가 납득됐음'},
+  {name:'오ㅇㅇ',age:'26세',color:'conic-gradient(#ffcc44,#ff7722,#ffcc44)',tc:'#080b10',
+   hi:'ㅋㅋㅋㅋ 19금파트',text:'이거 읽다가 혼자 방에서 뭐야ㅋㅋㅋㅋ 했음 아니 어떻게 알아 이걸. 맞긴 맞는데 좀 민망하달까. 암튼 재밌고 신기했어요'},
+  {name:'강ㅇㅇ',age:'20세',color:'conic-gradient(#44ffcc,#00bbaa,#44ffcc)',tc:'#080b10',
+   hi:'친구들이랑 같이봄',text:'저 포함 4명이서 다같이 했는데 결과 공유하면서 난리났어요ㅋㅋ 아우라카드 각자 너무달라서 신기하고 내용도 다들 맞다고해서 진짜인가봐요'},
+  {name:'윤ㅇㅇ',age:'25세',color:'conic-gradient(#c084ff,#8b53fe,#c084ff)',tc:'#fff',
+   hi:'결제하고 한시간동안 읽었어요',text:'밥먹다가 폰 보면서 읽었는데 밥이 식는줄도 몰랐음.. 그냥 연애운 같은거 알려주는줄 알았는데 생각보다 나에 대한 이야기라서 흥미로웠어요'},
+  {name:'임ㅇㅇ',age:'29세',color:'conic-gradient(#ff6644,#ffcc44,#ff6644)',tc:'#080b10',
+   hi:'눈물날뻔했어요 진짜로',text:'사람들이 좋아하는데 진짜 나를 아는 느낌은 없다... 그 파트 읽다가 뭔가 뭉클했어요. 평소에 정확히 이런 생각 했거든요. 어떻게 알았는지'},
+  {name:'한ㅇㅇ',age:'23세',color:'conic-gradient(#8eff01,#8b53fe,#8eff01)',tc:'#080b10',
+   hi:'인스타 올렸더니 dm 폭발',text:'아우라카드 스토리에 올렸는데 이게뭐냐고 dm이 엄청왔어요ㅋㅋ 링크 공유해줬더니 주변에 다 퍼짐. 저도 내용 꽤 맞아서 신기했고요'},
+];
+
+let rvIdx = 0;
+let rvTimer = null;
+let rvActive = 'a'; // 현재 보이는 슬롯
+
+function makeRvHTML(r){
+  return `<div class="pop-rv-avatar" style="background:${r.color};color:${r.tc};">${r.name[0]}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+        <span class="pop-rv-name">${r.name} 님</span>
+        <span class="pop-rv-stars">★★★★★</span>
+        <span style="font-size:10px;color:var(--muted);">${r.age}</span>
+      </div>
+      <p class="pop-rv-text"><span class="pop-rv-hi">${r.hi}</span> ${r.text}</p>
+    </div>`;
+}
+
+function initReviews(){
+  const slotA = document.getElementById('review-a');
+  const slotB = document.getElementById('review-b');
+  if(!slotA || !slotB) return;
+
+  rvIdx = 0;
+  rvActive = 'a';
+
+  // A 슬롯: 현재 후기, 화면에 보임
+  slotA.innerHTML = makeRvHTML(REVIEWS[0]);
+  slotA.style.transform = 'translateY(0)';
+  slotA.style.opacity = '1';
+
+  // B 슬롯: 다음 후기, 아래에 대기
+  slotB.innerHTML = makeRvHTML(REVIEWS[1]);
+  slotB.style.transform = 'translateY(140px)';
+  slotB.style.opacity = '0';
+
+  if(rvTimer) clearInterval(rvTimer);
+  rvTimer = setInterval(()=>{
+    rvIdx = (rvIdx + 1) % REVIEWS.length;
+    const nextIdx = (rvIdx + 1) % REVIEWS.length;
+    const cur = document.getElementById('review-' + rvActive);
+    const next = document.getElementById('review-' + (rvActive === 'a' ? 'b' : 'a'));
+    if(!cur || !next) return;
+
+    // 다음 내용 미리 세팅
+    next.innerHTML = makeRvHTML(REVIEWS[nextIdx]);
+    next.style.transition = 'none';
+    next.style.transform = 'translateY(140px)';
+    next.style.opacity = '0';
+
+    // 강제 reflow
+    next.offsetHeight;
+
+    // 애니메이션 시작
+    next.style.transition = 'transform .7s ease, opacity .7s ease';
+    cur.style.transition = 'transform .7s ease, opacity .7s ease';
+
+    requestAnimationFrame(()=>{
+      cur.style.transform = 'translateY(-140px)';
+      cur.style.opacity = '0';
+      next.style.transform = 'translateY(0)';
+      next.style.opacity = '1';
+    });
+
+    rvActive = rvActive === 'a' ? 'b' : 'a';
+  }, 3000);
+}
+
+function toggleFaq(el){
+  const item=el.parentElement,open=item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));
+  if(!open)item.classList.add('open');
+}
+
+// ── SUBMIT ──
+function handleSubmit(){
+  alert('결제 모듈 연동 필요\n토스페이먼츠: https://docs.tosspayments.com\n\n이 alert을 결제 함수로 교체하세요.');
+}
+</script>
+</body>
+</html>
