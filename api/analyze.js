@@ -50,7 +50,8 @@ export default async function handler(req, res) {
 아래 정보와 첨부 사진을 분석해서 반드시 유효한 JSON만 반환하세요.
 JSON 외 다른 텍스트, 마크다운, 코드블록은 절대 쓰지 마세요.
 중괄호로 시작해서 중괄호로 끝내세요.
-JSON 값 안에 줄바꿈(엔터) 없이 한 줄로 작성하세요.
+각 필드의 텍스트 값에는 큰따옴표(") 문자를 절대 사용하지 마세요. 작은따옴표(')도 사용하지 마세요.
+줄바꿈이 필요하면 공백으로 대신하세요.
 
 [분석 정보]
 생년월일: ${y}년 ${m}월 ${day}일
@@ -62,12 +63,39 @@ JSON 값 안에 줄바꿈(엔터) 없이 한 줄로 작성하세요.
 핵심 고민: ${concernHint}
 
 [관상 패턴 기준]
-날카로운 이목구비=sharp/electric, 부드럽고 둥근=wave/fluid, 신비로운 눈=organic/deep, 강렬한 눈=burst
+날카로운 이목구비=sharp 또는 electric
+부드럽고 둥근 인상=wave 또는 fluid
+신비로운 눈=organic 또는 deep
+강렬하고 또렷한 눈=burst
 
-반환 JSON 형식 (값은 실제 분석 내용으로 채울 것):
-{"aura_type":"집착 유발형 등 7가지 중 택1","aura_name":"감성적 이름","main_color":"${mc}","sub_color":"${sc}","pattern":"wave 등 택1","dohwa_score":82,"extra_color_desc":"색 시적 묘사","analysis_line1":"외면vs내면 3-4줄 분석","analysis_line2":"메인컬러 매력 3-4줄","analysis_line3":"아우라 변동 예고 3-4줄","p5_basic_open":"기본성격 핵심 한문장","p5_basic_open2":"두번째 문장 ██로 핵심단어 가림","p5_basic_blur":"성격기질무의식 300자 이상","p5_attract_open":"매력도화 핵심 한문장","p5_attract_open2":"두번째 문장 ██로 가림","p5_attract_blur":"매력도화 300자 이상","p5_relation_open":"관계패턴 핵심 한문장","p5_relation_open2":"두번째 문장 ██로 가림","p5_relation_blur":"관계패턴 300자 이상","p5_problem_open":"반복문제 핵심 한문장","p5_problem_open2":"두번째 문장 ██로 가림","p5_problem_blur":"반복문제 300자 이상","p5_instinct_open":"가끔 ██하고 싶다는 생각 안 드시나요","p5_instinct_open2":"두번째 문장 ██로 가림 자극적으로","p5_instinct_blur":"숨겨진욕망 성인용 300자 이상"}
+반환할 JSON 필드 목록 (반드시 이 키 이름 그대로):
+aura_type: 집착 유발형 또는 불꽃 유인형 또는 신비 흡인형 또는 잠재 폭발형 또는 공명 유발형 또는 심층 침투형 또는 순간 포획형
+aura_name: 감성적 아우라 이름
+main_color: ${mc}
+sub_color: ${sc}
+pattern: wave 또는 sharp 또는 fluid 또는 electric 또는 organic 또는 deep 또는 burst
+dohwa_score: 60에서 95 사이 숫자
+extra_color_desc: 아우라 색 시적 묘사
+analysis_line1: 관상과 사주 통합 외면vs내면 분석 (100자 이상)
+analysis_line2: 메인 컬러 매력 분석 (100자 이상)
+analysis_line3: 아우라 변동 예고 (100자 이상)
+p5_basic_open: 기본 성격 핵심 한 문장 (30자 이내)
+p5_basic_open2: 두번째 문장 핵심단어를 ██로 가림 (40자 이내)
+p5_basic_blur: 성격 기질 무의식 상세 분석 (200자 이상)
+p5_attract_open: 매력 도화 핵심 한 문장 (30자 이내)
+p5_attract_open2: 두번째 문장 핵심단어를 ██로 가림 (40자 이내)
+p5_attract_blur: 매력 도화살 상세 분석 (200자 이상)
+p5_relation_open: 관계 패턴 핵심 한 문장 (30자 이내)
+p5_relation_open2: 두번째 문장 핵심단어를 ██로 가림 (40자 이내)
+p5_relation_blur: 연애 인간관계 패턴 상세 분석 (200자 이상)
+p5_problem_open: 반복 문제 핵심 한 문장 (30자 이내)
+p5_problem_open2: 두번째 문장 핵심단어를 ██로 가림 (40자 이내)
+p5_problem_blur: 방해 요소 반복 실패 상세 분석 (200자 이상)
+p5_instinct_open: 가끔 ██하고 싶다는 생각 안 드시나요 형식 (30자 이내)
+p5_instinct_open2: 두번째 문장 핵심단어를 ██로 가림 자극적으로 (40자 이내)
+p5_instinct_blur: 숨겨진 욕망 본능 성인용 상세 분석 (200자 이상)
 
-모든 텍스트는 한국어. JSON 값 안에 큰따옴표 사용 금지, 작은따옴표도 금지. 줄바꿈 금지.`;
+모든 텍스트는 한국어로 작성하세요.`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -79,13 +107,15 @@ JSON 값 안에 줄바꿈(엔터) 없이 한 줄로 작성하세요.
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2500,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
-            { type: 'text', text: prompt }
-          ]
-        }]
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
+              { type: 'text', text: prompt }
+            ]
+          }
+        ]
       })
     });
 
@@ -98,31 +128,27 @@ JSON 값 안에 줄바꿈(엔터) 없이 한 줄로 작성하세요.
     const raw = data.content[0].text.trim();
 
     // 마크다운 코드블록 제거
-    let cleaned = raw.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+    let cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
 
-    // JSON 객체 추출
+    // JSON 블록 추출
     const start = cleaned.indexOf('{');
     const end = cleaned.lastIndexOf('}');
     if (start === -1 || end === -1) {
-      console.error('JSON 없음. 원본:', raw.substring(0, 300));
-      throw new Error('AI 응답에 JSON이 없습니다');
+      console.error('JSON 블록 없음. 원본 앞부분:', raw.substring(0, 200));
+      throw new Error('AI 응답에서 JSON을 찾을 수 없습니다');
     }
 
-    let jsonStr = cleaned.substring(start, end + 1);
+    const jsonStr = cleaned.substring(start, end + 1);
 
-    // 제어 문자 제거 (줄바꿈, 탭 등을 공백으로)
-    jsonStr = jsonStr.replace(/[\u0000-\u001F\u007F]/g, (ch) => {
-      if (ch === '\n' || ch === '\r') return ' ';
-      if (ch === '\t') return ' ';
-      return '';
-    });
+    // 제어문자 제거 (줄바꿈 제외)
+    const safeJson = jsonStr.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 
     let result;
     try {
-      result = JSON.parse(jsonStr);
-    } catch(parseErr) {
-      console.error('파싱 실패:', parseErr.message);
-      console.error('JSON 원본 (앞200자):', jsonStr.substring(0, 200));
+      result = JSON.parse(safeJson);
+    } catch (parseErr) {
+      console.error('JSON 파싱 오류:', parseErr.message);
+      console.error('파싱 시도한 JSON 앞부분:', safeJson.substring(0, 300));
       throw new Error('JSON 파싱 실패: ' + parseErr.message);
     }
 
