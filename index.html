@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AURA — 당신의 위험한 매력 구조</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700;900&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --lime: #8eff01;
+  --purple: #8b53fe;
+  --deepest: #080b10;
+  --white: #f0eeff;
+  --muted: #7a7a9a;
+  --card: rgba(139,83,254,0.07);
+  --border: rgba(142,255,1,0.13);
+  --border-p: rgba(139,83,254,0.22);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{width:100%;height:100%;background:#080b10;}
+body{width:100%;min-height:100%;background:#080b10;color:#f0eeff;font-family:'Noto Sans KR',sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;height:100%;}
+
+/* NOISE */
+body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.032;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+#bg-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;}
+
+/* PROGRESS */
+.prog-wrap{position:fixed;top:0;left:0;right:0;height:2px;background:rgba(255,255,255,.05);z-index:100;}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--purple),var(--lime));width:0%;transition:width .4s ease;}
+.dots-wrap{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:100;}
+.pdot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.15);transition:all .3s;}
+.pdot.active{background:var(--lime);box-shadow:0 0 8px var(--lime);}
+.pdot.done{background:rgba(142,255,1,.4);}
+
+/* ── PAGES ── */
+/* 핵심: 각 페이지는 fixed + 전체 영역 차지, scroll은 페이지 내에서 */
+.page{
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  z-index:2;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  padding:52px 20px 20px;
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(30px);
+  transition:opacity .5s ease, transform .5s ease;
+  scrollbar-width:none;
+}
+.page::-webkit-scrollbar{display:none;}
+.page.active{
+  opacity:1;
+  pointer-events:all;
+  transform:translateY(0);
+}
+.page.exit-up{
+  opacity:0;
+  transform:translateY(-30px);
+  transition:opacity .4s ease, transform .4s ease;
+}
+.page.exit-down{
+  opacity:0;
+  transform:translateY(30px);
+  transition:opacity .4s ease, transform .4s ease;
+}
+
+/* 페이지 내 버튼 - 항상 페이지 맨 아래 */
+.page-btns{
+  width:100%;
+  max-width:400px;
+  display:flex;
+  gap:10px;
+  margin-top:auto;
+  padding:28px 0 40px;
+  flex-shrink:0;
+}
+
+/* BUTTONS */
+.btn-next{
+  flex:1;
+  padding:17px 20px;
+  background:linear-gradient(135deg,var(--lime),#aaff30);
+  color:#080b10;
+  font-family:'Noto Sans KR',sans-serif;
+  font-weight:700;
+  font-size:15px;
+  border:none;
+  border-radius:100px;
+  cursor:pointer;
+  letter-spacing:.02em;
+  box-shadow:0 0 28px rgba(142,255,1,.22);
+  transition:all .25s;
+}
+.btn-next:active{transform:scale(.97);}
+.btn-prev{
+  flex:0 0 auto;
+  background:transparent;
+  border:1px solid var(--border-p);
+  color:var(--muted);
+  font-size:13px;
+  padding:14px 20px;
+  border-radius:100px;
+  cursor:pointer;
+  transition:all .25s;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.btn-prev:active{border-color:var(--lime);color:var(--lime);}
+
+/* TYPOGRAPHY */
+.eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--lime);margin-bottom:12px;text-align:center;}
+.pg-title{font-family:'Noto Serif KR',serif;font-size:clamp(22px,6vw,36px);font-weight:900;line-height:1.15;letter-spacing:-.02em;margin-bottom:10px;text-align:center;}
+.pg-sub{font-size:14px;color:var(--muted);line-height:1.9;margin-bottom:20px;max-width:320px;text-align:center;}
+
+/* BADGE / WARN-TAG */
+.badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-p);background:rgba(139,83,254,.1);padding:6px 16px;border-radius:100px;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 6px var(--lime);}
+.warn-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(255,60,60,.1);border:1px solid rgba(255,60,60,.25);padding:6px 14px;border-radius:100px;font-size:11px;color:#ff8080;letter-spacing:.08em;margin-bottom:14px;}
+
+/* HERO */
+.hero-h1{font-family:'Noto Serif KR',serif;font-size:clamp(28px,8vw,52px);font-weight:900;line-height:1.04;letter-spacing:-.028em;margin-bottom:10px;text-align:center;}
+.line-lime{color:var(--lime);display:block;}
+.line-white{color:var(--white);display:block;}
+.line-purple{color:var(--purple);display:block;}
+.hero-sub{font-size:14px;color:var(--muted);line-height:1.9;margin-bottom:22px;text-align:center;}
+.hero-stats{display:flex;justify-content:center;gap:28px;margin-bottom:20px;}
+.stat-num{font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:var(--lime);}
+.stat-label{font-size:11px;color:var(--muted);margin-top:2px;text-align:center;}
+.live-chip{font-size:11px;color:var(--muted);text-align:center;margin-bottom:12px;}
+.live-chip span{color:var(--lime);font-weight:700;}
+
+/* HOOK PAGE */
+.hook-lines{display:flex;flex-direction:column;gap:12px;width:100%;max-width:380px;margin-bottom:20px;}
+.hook-box{background:var(--card);border:1px solid var(--border-p);border-radius:16px;padding:18px 20px;font-size:14px;line-height:1.8;color:rgba(240,238,255,.85);}
+.hook-box strong{color:var(--white);}
+.hook-box em{color:var(--lime);font-style:normal;}
+.hook-warn{background:rgba(255,80,80,.06);border:1px solid rgba(255,80,80,.2);border-radius:14px;padding:14px 18px;font-size:13px;color:#ff9090;text-align:center;width:100%;max-width:380px;line-height:1.7;}
+
+/* FORM */
+.form-wrap{width:100%;max-width:380px;}
+.form-card{background:rgba(139,83,254,.06);border:1px solid var(--border-p);border-radius:22px;padding:22px 18px;width:100%;margin-bottom:0;}
+.upload-area{border:2px dashed var(--border-p);border-radius:15px;padding:26px 18px;text-align:center;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;background:rgba(139,83,254,.03);margin-bottom:18px;}
+.upload-area.has-photo{border-color:var(--lime);}
+.upload-input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-icon{font-size:32px;margin-bottom:8px;}
+.upload-title{font-size:14px;font-weight:700;margin-bottom:4px;}
+.upload-sub{font-size:11px;color:var(--muted);line-height:1.6;}
+.upload-preview{display:none;position:relative;}
+.upload-preview img{width:100%;max-height:200px;object-fit:cover;border-radius:12px;}
+.rm-btn{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);border:none;color:#fff;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:12px;}
+.f-row{margin-bottom:14px;}
+.f-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.f-label{font-size:11px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px;display:block;}
+.f-input{width:100%;background:rgba(139,83,254,.08);border:1px solid var(--border-p);border-radius:12px;padding:13px 16px;color:var(--white);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border .2s;-webkit-appearance:none;}
+.f-input:focus{border-color:var(--purple);}
+.f-input option{background:#0e0820;}
+.f-notice{font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.7;}
+.photo-tip{margin-top:12px;background:rgba(139,83,254,.05);border:1px solid var(--border-p);border-radius:12px;padding:12px 14px;}
+.photo-tip-title{font-size:11px;color:var(--lime);letter-spacing:.1em;margin-bottom:5px;}
+.photo-tip-body{font-size:11px;color:var(--muted);line-height:1.8;}
+
+/* LOADING */
+#loading-screen{position:fixed;inset:0;z-index:500;background:var(--deepest);display:none;flex-direction:column;align-items:center;justify-content:center;gap:28px;}
+#loading-screen.on{display:flex;}
+.load-orb-wrap{position:relative;width:120px;height:120px;}
+#load-canvas{width:120px;height:120px;}
+.load-bar-wrap{width:200px;height:2px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;}
+.load-bar{height:100%;background:linear-gradient(90deg,var(--purple),var(--lime));width:0%;border-radius:2px;transition:width .6s ease;}
+.load-txt{font-size:14px;color:rgba(240,238,255,.7);text-align:center;line-height:1.9;max-width:260px;transition:opacity .4s ease;}
+.load-time{font-size:11px;color:rgba(142,255,1,.6);text-align:center;line-height:1.7;margin-top:-16px;}
+.load-warn{font-size:11px;color:var(--lime);text-align:center;opacity:0;transition:opacity .3s;}
+.load-warn.on{opacity:1;}
+
+/* AURA CARD PAGE */
+.aura-card-wrap{position:relative;width:100%;max-width:280px;aspect-ratio:3/4;border-radius:24px;overflow:hidden;margin:0 auto 18px;box-shadow:0 0 60px rgba(139,83,254,.25);}
+#aura-card-canvas{width:100%;height:100%;display:block;}
+.aura-card-blur{position:absolute;inset:0;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(8,11,16,.35);}
+.lock-chip-card{background:rgba(8,11,16,.6);border:1px solid rgba(139,83,254,.5);border-radius:100px;padding:8px 18px;font-size:12px;color:#f0eeff;letter-spacing:.08em;}
+.aura-type-name{font-family:'Noto Serif KR',serif;font-size:18px;font-weight:900;color:var(--white);letter-spacing:.06em;text-align:center;margin-bottom:10px;text-shadow:0 0 20px rgba(142,255,1,.3);}
+.color-chips{display:flex;gap:12px;justify-content:center;margin-bottom:16px;}
+.color-chip{display:flex;align-items:center;gap:8px;background:rgba(139,83,254,.1);border:1px solid var(--border-p);border-radius:100px;padding:8px 14px;}
+.cdot{width:14px;height:14px;border-radius:50%;}
+.chex{font-size:11px;color:var(--muted);font-family:monospace;filter:blur(4px);}
+.chip-label{font-size:11px;font-weight:700;color:var(--white);}
+.analysis-lines{display:flex;flex-direction:column;gap:10px;width:100%;max-width:380px;}
+.aline{font-size:13px;line-height:1.9;color:rgba(240,238,255,.85);background:var(--card);border:1px solid var(--border-p);border-radius:14px;padding:16px 18px;}
+.aline strong{color:var(--white);}
+.aline-blur{filter:blur(4px);-webkit-filter:blur(4px);user-select:none;}
+
+/* RESULT PREVIEW PAGE */
+.res-cards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:380px;}
+.res-card{border:1px solid var(--border-p);background:var(--card);border-radius:16px;padding:18px;position:relative;overflow:hidden;}
+.res-label{font-size:10px;letter-spacing:.15em;color:var(--lime);margin-bottom:4px;}
+.res-title{font-size:14px;font-weight:700;margin-bottom:10px;}
+.res-open{font-size:13px;color:rgba(240,238,255,.9);line-height:1.75;margin-bottom:8px;}
+.res-open strong{color:var(--white);}
+.blur-wrap{position:relative;}
+.blur-txt{font-size:12px;color:rgba(240,238,255,.7);line-height:1.85;filter:blur(5px);-webkit-filter:blur(5px);user-select:none;}
+.blur-over{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.lock-chip{background:rgba(139,83,254,.15);border:1px solid var(--border-p);border-radius:100px;padding:6px 16px;font-size:11px;color:rgba(240,238,255,.8);letter-spacing:.08em;}
+.score-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.s-bar{flex:1;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;}
+.s-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--lime));border-radius:2px;width:0%;transition:width 1s ease;}
+.s-num{font-size:12px;color:var(--lime);font-weight:700;}
+.mini-blur{filter:blur(3px);-webkit-filter:blur(3px);}
+
+/* LOCKED PAGE */
+.locked-list{display:flex;flex-direction:column;gap:8px;width:100%;max-width:380px;margin-bottom:18px;}
+.locked-item{display:flex;align-items:center;gap:13px;padding:14px 16px;border:1px solid var(--border-p);background:var(--card);border-radius:13px;position:relative;overflow:hidden;}
+.lock-emoji{font-size:20px;}
+.lock-text{font-size:13px;color:rgba(240,238,255,.75);flex:1;}
+.fire-badge{font-size:10px;color:rgba(255,150,100,.7);letter-spacing:.08em;background:rgba(255,80,0,.1);border:1px solid rgba(255,100,0,.2);border-radius:100px;padding:3px 10px;}
+.key-box{width:100%;max-width:380px;background:rgba(139,83,254,.08);border:1px solid var(--border-p);border-radius:16px;padding:20px 18px;text-align:center;font-family:'Noto Serif KR',serif;font-size:14px;font-weight:600;line-height:1.75;margin-bottom:14px;}
+.key-box em{color:var(--lime);font-style:normal;display:block;margin-top:8px;font-size:12px;font-weight:300;font-family:'Noto Sans KR',sans-serif;}
+.open-btn{width:100%;max-width:380px;}
+
+/* PAYMENT POPUP */
+#pay-sheet{position:fixed;inset:0;z-index:700;display:none;align-items:center;justify-content:center;padding:20px;}
+#pay-sheet.on{display:flex;}
+#pay-backdrop{position:absolute;inset:0;background:rgba(5,3,14,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+#pay-body{position:relative;z-index:1;background:#0d0a1e;border-radius:24px;padding:22px 20px 24px;width:100%;max-width:380px;border:1px solid rgba(139,83,254,.3);box-shadow:0 0 60px rgba(139,83,254,.15);max-height:90vh;overflow-y:auto;}
+#pay-body::-webkit-scrollbar{display:none;}
+.rv-slider{margin-bottom:16px;position:relative;height:108px;overflow:hidden;}
+.rv-slot{position:absolute;left:0;right:0;background:rgba(139,83,254,.08);border:1px solid var(--border-p);border-radius:12px;padding:11px 13px;display:flex;gap:9px;align-items:flex-start;transition:transform .7s ease,opacity .7s ease;}
+.rv-avatar{width:27px;height:27px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.rv-name{font-size:11px;font-weight:700;color:var(--white);}
+.rv-stars{font-size:10px;color:var(--lime);}
+.rv-age{font-size:10px;color:var(--muted);}
+.rv-text{font-size:11px;color:rgba(240,238,255,.75);line-height:1.65;margin-top:3px;}
+.rv-hi{color:var(--lime);font-weight:700;}
+.pay-price-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;}
+.pay-ori{font-size:11px;color:var(--muted);text-decoration:line-through;}
+.pay-price{font-family:'Noto Serif KR',serif;font-size:38px;font-weight:900;color:var(--lime);line-height:1;text-shadow:0 0 28px rgba(142,255,1,.35);}
+.pay-badge{background:rgba(142,255,1,.12);border:1px solid var(--border);padding:5px 12px;border-radius:100px;font-size:10px;color:var(--lime);}
+.pay-list{display:flex;flex-direction:column;gap:7px;margin-bottom:16px;}
+.pay-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:rgba(240,238,255,.85);}
+.pay-check{color:var(--lime);flex-shrink:0;}
+.pay-hot{color:#ff9090;}
+.urgency{display:flex;align-items:center;justify-content:center;gap:5px;font-size:11px;color:var(--muted);margin-top:10px;}
+.u-dot{width:5px;height:5px;background:#ff4444;border-radius:50%;animation:bdot 1s infinite;}
+@keyframes bdot{0%,100%{opacity:1;}50%{opacity:.3;}}
+.pay-close{display:block;width:100%;text-align:center;background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;padding:14px;margin-top:4px;}
+.pay-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border-p),transparent);margin:14px 0;}
+.sheet-title{font-family:'Noto Serif KR',serif;font-size:18px;font-weight:700;text-align:center;margin-bottom:6px;line-height:1.3;}
+.sheet-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px;line-height:1.7;}
+
+/* ANIMATIONS */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body style="background:#080b10;">
+
+<canvas id="bg-canvas"></canvas>
+
+<!-- PROGRESS -->
+<div class="prog-wrap"><div class="prog-bar" id="prog"></div></div>
+<div class="dots-wrap" id="dots-wrap"></div>
+
+<!-- ══ PAGE 1 — HERO ══ -->
+<div class="page active" id="pg-0" style="justify-content:center;">
+  <div class="badge"><span class="badge-dot"></span> AI 아우라 분석 · 베타 오픈</div>
+  <div class="warn-tag">⚠️ 위험한 매력 요소 감지됨</div>
+  <h1 class="hero-h1">
+    <span class="line-lime">AURA</span>
+    <span class="line-white">사람들이 당신에게</span>
+    <span class="line-purple">빠지는 이유</span>
+  </h1>
+  <p class="hero-sub">생년월일 + 사진 한 장으로<br><strong style="color:var(--white)">당신의 숨겨진 매력과 본능</strong>을<br>아우라로 해석합니다</p>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">3,241</div><div class="stat-label">분석 완료</div></div>
+    <div class="stat"><div class="stat-num">4.9★</div><div class="stat-label">평균 만족도</div></div>
+    <div class="stat"><div class="stat-num">12,900</div><div class="stat-label">원 단 1회</div></div>
+  </div>
+  <div class="live-chip">지금 <span id="live-count">47명</span>이 분석 중</div>
+  <div class="page-btns" style="justify-content:center;">
+    <button class="btn-next" style="max-width:320px;" onclick="goTo(1,1)">시작하기 →</button>
+  </div>
+</div>
+
+<!-- ══ PAGE 2 — HOOK ══ -->
+<div class="page" id="pg-1">
+  <div class="eyebrow">당신은 이미 알고 있다</div>
+  <h2 class="pg-title">당신은 이미,<br>몇 번은 느껴봤을 거예요</h2>
+  <div class="hook-lines">
+    <div class="hook-box">"어, 저 사람… 나한테 끌리는 것 같은데?"<br>설명할 수는 없는데, <strong>이상하게 확신이 드는 순간.</strong><br>그리고 얼마 지나지 않아 정말로 그런 방향으로 흘러가버렸던 경험.</div>
+    <div class="hook-box"><strong>사실 그건 우연이 아닙니다.</strong><br>당신은 이미 알고 있는 사람입니다.<br>다만, <em>정확한 언어로 설명하지 못했을 뿐.</em></div>
+    <div class="hook-box">왜 어떤 사람은 쉽게 끌리고, 왜 어떤 관계는 반복되는지<br>왜 어떤 사람은 당신에게 <strong>집착</strong>하고<br>또 어떤 사람은 갑자기 멀어지는지</div>
+    <div class="hook-warn">⚠️ 문제는 그 매력이, 항상 좋은 방향으로만 작동하지 않는다는 점입니다</div>
+  </div>
+  <div class="page-btns">
+    <button class="btn-prev" onclick="goTo(0,-1)">←</button>
+    <button class="btn-next" onclick="goTo(2,1)">다음 →</button>
+  </div>
+</div>
+
+<!-- ══ PAGE 3 — INPUT FORM ══ -->
+<div class="page" id="pg-2" style="align-items:center;">
+  <div class="eyebrow">START ANALYSIS</div>
+  <h2 class="pg-title" style="font-size:clamp(20px,5vw,32px)">당신의 '진짜 성향'을<br>읽어내는 중입니다</h2>
+  <p class="pg-sub" style="margin-bottom:16px;">사진과 생년월일을 입력하면<br>AI가 당신만의 아우라를 생성합니다</p>
+  <div class="form-wrap">
+    <div class="form-card">
+      <div class="upload-area" id="uploadArea">
+        <input type="file" class="upload-input" accept="image/*" id="photoInput" onchange="handlePhoto(event)">
+        <div id="uploadPlaceholder">
+          <div class="upload-icon">📸</div>
+          <div class="upload-title">정면 사진 업로드</div>
+          <div class="upload-sub">얼굴 전체가 보이는 사진<br>밝은 조명 · 필터 최소화</div>
+        </div>
+        <div class="upload-preview" id="uploadPreview">
+          <img id="previewImg" src="" alt="">
+          <button class="rm-btn" onclick="removePhoto(event)">✕</button>
+        </div>
+      </div>
+      <div class="photo-tip">
+        <div class="photo-tip-title">📸 어떤 사진이 좋은가요?</div>
+        <div class="photo-tip-body">정면을 바라보는 사진 · 얼굴 전체가 보이는 사진<br>선글라스·마스크 없이 · 밝은 조명 권장</div>
+      </div>
+      <div style="height:16px;"></div>
+      <div class="f-row">
+        <label class="f-label">이름 또는 닉네임</label>
+        <input type="text" class="f-input" id="userName" placeholder="예: 지은, 하연, 수민..." maxlength="10">
+      </div>
+      <div class="f-row">
+        <label class="f-label">생년월일 (양력)</label>
+        <input type="date" class="f-input" id="birthDate" max="2008-12-31" min="1980-01-01">
+      </div>
+      <div class="f-row-2">
+        <div>
+          <label class="f-label">출생 시간 (선택)</label>
+          <input type="time" class="f-input" id="birthTime">
+        </div>
+        <div>
+          <label class="f-label">혈액형</label>
+          <select class="f-input" id="bloodType">
+            <option value="">선택</option>
+            <option>A형</option><option>B형</option><option>O형</option><option>AB형</option>
+          </select>
+        </div>
+      </div>
+      <div class="f-row">
+        <label class="f-label">요즘 가장 신경 쓰이는 것</label>
+        <select class="f-input" id="concern">
+          <option value="">선택해주세요</option>
+          <option value="q1">요즘 나는 괜찮은 사람인 척 하고 있는 것 같다</option>
+          <option value="q2">연애를 해도 결국 내가 더 매달리는 쪽이 된다</option>
+          <option value="q3">이성에게 끌리긴 하는데, 깊어지면 멀어지게 된다</option>
+          <option value="q4">사람들이 나를 좋아는 하는데, 진짜 나를 아는 느낌은 없다</option>
+          <option value="q5">가끔은 내가 사랑받을 수 있는 사람인지 의심된다</option>
+        </select>
+      </div>
+      <p class="f-notice"><strong>업로드된 사진은 분석 후 즉시 삭제됩니다</strong></p>
+    </div>
+  </div>
+  <div class="page-btns">
+    <button class="btn-prev" onclick="goTo(1,-1)">←</button>
+    <button class="btn-next" onclick="startAnalysis()">👉 분석 시작하기</button>
+  </div>
+</div>
+
+<!-- ══ PAGE 4 — AURA CARD ══ -->
+<div class="page" id="pg-3" style="align-items:center;">
+  <div class="eyebrow">AURA DETECTED</div>
+  <h2 class="pg-title" style="font-size:clamp(18px,5vw,28px);margin-bottom:28px;">당신의 아우라는<br>'<span id="aura-type-label">집착 유발형</span>'입니다</h2>
+  <div class="aura-card-wrap">
+    <canvas id="aura-card-canvas"></canvas>
+    <div class="aura-card-blur">
+      <div class="lock-chip-card">🔒 결제 후 전체 공개</div>
+      <div style="font-size:11px;color:rgba(240,238,255,.5);text-align:center;margin-top:6px;">고해상도 다운로드 · 인스타 공유</div>
+    </div>
+  </div>
+  <div class="aura-type-name" id="aura-type-name">— 딥 블루베리 인디고 —</div>
+  <div class="color-chips">
+    <div class="color-chip">
+      <div class="cdot" id="main-cdot-trio" style="background:#444;"></div>
+      <div>
+        <div class="chip-label">메인</div>
+        <div class="chex" id="main-chex-trio">——</div>
+      </div>
+    </div>
+    <div class="color-chip">
+      <div class="cdot" id="sub-cdot-trio" style="background:#444;"></div>
+      <div>
+        <div class="chip-label">서브</div>
+        <div class="chex" id="sub-chex-trio">——</div>
+      </div>
+    </div>
+  </div>
+  <div class="analysis-lines">
+    <div class="aline" id="aline-1">
+      <span id="pg4-name">당신</span>님의 아우라 분석 결과,<br>
+      외면으로 흐르는 에너지와<br>
+      실제 내면에서 반응하는 방식 사이에<br>
+      <strong>뚜렷한 차이가 존재합니다.</strong><br>
+      <span style="color:var(--muted);font-size:12px;display:block;margin-top:4px;">이 차이가 당신의 관계를 반복적으로 만들어갑니다.</span>
+    </div>
+    <div class="aline" id="aline-2">
+      특히, 당신의<br>
+      <span class="aline-blur" id="aura-extra-color">"짙은 블루베리빛 오로라"</span>는<br>
+      상대를 결국 <strong>집착하게 만드는 구조</strong>로 작동합니다.<br>
+      <span style="color:var(--muted);font-size:12px;display:block;margin-top:4px;">그리고 그 흐름은, <span style="filter:blur(4px);-webkit-filter:blur(4px);">이미 반복되고 있습니다.</span></span>
+    </div>
+    <div class="aline" id="aline-3">
+      앞으로 <span style="filter:blur(4px);-webkit-filter:blur(4px);">"3년"</span> 후<br>
+      근본적인 아우라의 흐름에 변동이 있을 예정입니다.<br>
+      특히 <span style="filter:blur(4px);-webkit-filter:blur(4px);" id="aura-change-area">"금전, 연애 관계"</span>에서<br>
+      크게 나타날 것으로 읽힙니다.
+    </div>
+  </div>
+  <div class="page-btns">
+    <button class="btn-prev" onclick="goTo(2,-1)">←</button>
+    <button class="btn-next" onclick="goTo(4,1)">다음 →</button>
+  </div>
+</div>
+
+<!-- ══ PAGE 5 — RESULT PREVIEW ══ -->
+<div class="page" id="pg-4">
+  <div class="eyebrow" style="text-align:center;">RESULT PREVIEW</div>
+  <h2 class="pg-title" style="font-size:clamp(18px,5vw,26px);margin-bottom:6px;">당신이 알고 있는 당신과,<br>실제로 작동하는 당신은 다릅니다</h2>
+  <p style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:20px;">아래 내용은 일부만 공개됩니다</p>
+  <div class="res-cards">
+
+    <!-- 기본 구조 -->
+    <div class="res-card">
+      <div class="res-label">🔒 기본 구조</div>
+      <div class="res-title">성격 / 기질 / 무의식</div>
+      <div class="res-open">
+        <span id="p5-basic-open" style="display:block;font-weight:700;margin-bottom:4px;">당신은 스스로를 다 안다고 생각하지만,</span>
+        <span id="p5-basic-open2" style="display:block;font-size:12px;color:rgba(240,238,255,.75);">실제로는 특정한 방식으로만 반복되고 있습니다.</span>
+      </div>
+      <div class="blur-wrap">
+        <div class="blur-txt" id="p5-basic-blur">당신의 기본 에너지 구조는 겉으로 드러나는 것과 내부에서 작동하는 방식이 다릅니다. 이 차이가 스스로도 설명하기 어려운 감정과 선택을 반복하게 만드는 근본 원인입니다. 특히 관계에서 이 패턴은 더욱 두드러지게 나타납니다.</div>
+        <div class="blur-over"><div class="lock-chip">🔒 결제 후 열람</div></div>
+      </div>
+    </div>
+
+    <!-- 매력 코드 -->
+    <div class="res-card">
+      <div class="res-label">🔒 사람을 끌어당기는 방식</div>
+      <div class="res-title">매력 / 도화 / 첫인상</div>
+      <div class="score-row">
+        <div class="s-bar"><div class="s-fill" id="dohwa-fill"></div></div>
+        <div class="s-num" id="dohwa-score">— / 100</div>
+      </div>
+      <div class="res-open">
+        <span id="p5-attract-open" style="display:block;font-weight:700;margin-bottom:4px;">이성이 처음 봤을 때, 자기도 모르게 시선이 갑니다.</span>
+        <span id="p5-attract-open2" style="display:block;font-size:12px;color:rgba(240,238,255,.75);">'거리감'과 '호기심' 사이에서 상대는 <span style="filter:blur(3px);">당신을 잊지 못합니다.</span></span>
+      </div>
+      <div class="blur-wrap">
+        <div class="blur-txt" id="p5-attract-blur">도화살과 관상이 만들어내는 매력 코드는 단순한 외모를 넘어섭니다. 상대가 처음에는 접근하기 어렵다고 느끼게 만들지만, 일단 가까워지면 강하게 끌어당기는 구조입니다.</div>
+        <div class="blur-over"><div class="lock-chip">🔒 결제 후 열람</div></div>
+      </div>
+    </div>
+
+    <!-- 관계 패턴 -->
+    <div class="res-card">
+      <div class="res-label">🔒 관계에서의 패턴</div>
+      <div class="res-title">연애 / 친구 / 직장</div>
+      <div class="res-open">
+        <span id="p5-relation-open" style="display:block;font-weight:700;margin-bottom:4px;">가까워질수록 드러나는 진짜 당신의 모습,</span>
+        <span id="p5-relation-open2" style="display:block;font-size:12px;color:rgba(240,238,255,.75);">그게 관계를 <span style="filter:blur(3px);">반복적으로 같은 방향으로</span> 흐르게 만듭니다.</span>
+      </div>
+      <div class="blur-wrap">
+        <div class="blur-txt" id="p5-relation-blur">친밀감이 형성될수록 당신의 진짜 에너지 패턴이 드러나기 시작합니다. 이 시점에서 관계가 깊어지거나 반대로 갑작스럽게 멀어지는 경우가 반복됩니다.</div>
+        <div class="blur-over"><div class="lock-chip">🔒 결제 후 열람</div></div>
+      </div>
+    </div>
+
+    <!-- 반복 문제 -->
+    <div class="res-card">
+      <div class="res-label">🔒 반복되는 문제</div>
+      <div class="res-title">왜 같은 상황이 반복되는지</div>
+      <div class="res-open">
+        <span id="p5-problem-open" style="display:block;font-weight:700;margin-bottom:4px;">노력은 하는데 결과가 안 따라오는 느낌,</span>
+        <span id="p5-problem-open2" style="display:block;font-size:12px;color:rgba(240,238,255,.75);">그 이유는 의지가 아니라 <span style="filter:blur(3px);">당신의 구조 때문</span>입니다.</span>
+      </div>
+      <div class="blur-wrap">
+        <div class="blur-txt" id="p5-problem-blur">분명히 노력하는데 결과가 따라오지 않는 느낌, 또는 중요한 순간에 이상한 선택을 하게 되는 것이 이 에너지 충돌에서 비롯됩니다.</div>
+        <div class="blur-over"><div class="lock-chip">🔒 결제 후 열람</div></div>
+      </div>
+    </div>
+
+    <!-- 숨겨진 본능 -->
+    <div class="res-card" style="border-color:rgba(255,80,80,.25);background:rgba(255,50,50,.04);">
+      <div class="res-label" style="color:#ff8080;">🔥 숨겨진 본능</div>
+      <div class="res-title">감정 + 욕망</div>
+      <div class="res-open">
+        <span id="p5-instinct-open" style="display:block;font-weight:700;margin-bottom:4px;">가끔 <span style="filter:blur(3px);">그러고 싶다</span>는 생각... 안 드시나요?</span>
+        <span id="p5-instinct-open2" style="display:block;font-size:12px;color:rgba(240,238,255,.75);">스스로도 인정하기 어려운 <span style="filter:blur(3px);">그 감정과 욕망</span>의 정체.</span>
+      </div>
+      <div class="blur-wrap">
+        <div class="blur-txt" id="p5-instinct-blur">표면적으로는 드러내지 않지만 내면에서 강하게 작동하는 본능적 성향이 있습니다. 이것은 감정이 깊어지는 순간 특히 강하게 발현되며 상대를 놀라게 만드는 경우가 있습니다.</div>
+        <div class="blur-over"><div class="lock-chip">🔒 성인 · 결제 후 열람</div></div>
+      </div>
+    </div>
+
+  </div>
+  <div class="page-btns">
+    <button class="btn-prev" onclick="goTo(3,-1)">←</button>
+    <button class="btn-next" onclick="goTo(5,1)">다음 →</button>
+  </div>
+</div>
+
+<!-- ══ PAGE 6 — LOCKED LIST ══ -->
+<div class="page" id="pg-5" style="align-items:center;">
+  <div class="eyebrow" style="text-align:center;">잠긴 영역</div>
+  <h2 class="pg-title" style="text-align:center;font-size:clamp(20px,5vw,30px);">여기서부터는<br>대부분이 예상과 다릅니다</h2>
+  <p class="pg-sub" style="text-align:center;">특히, 이 부분은 <strong>스스로도 인정하기 어려워하는 영역</strong>입니다.</p>
+  <div class="locked-list">
+    <div class="locked-item"><div class="lock-emoji">🧲</div><div class="lock-text">당신에게 빠지는 사람의 특징과 유형</div></div>
+    <div class="locked-item"><div class="lock-emoji">🔁</div><div class="lock-text">반복되는 연애 패턴과 그 이유</div></div>
+    <div class="locked-item"><div class="lock-emoji">💔</div><div class="lock-text">관계가 무너지는 결정적인 순간</div></div>
+    <div class="locked-item"><div class="lock-emoji">🌊</div><div class="lock-text">감정이 깊어질수록 바뀌는 당신의 태도</div></div>
+    <div class="locked-item" style="border-color:rgba(255,100,0,.2);">
+      <div class="lock-emoji">🔥</div>
+      <div class="lock-text" style="color:rgba(255,150,100,.35);">숨겨진 본능적 성향 (19금)</div>
+      <div class="fire-badge">🔒 성인 잠금</div>
+    </div>
+  </div>
+  <div class="key-box">
+    지금까지 본 건 일부입니다.<br>당신의 진짜 패턴은 <strong style="color:var(--lime)">아직 열리지 않았습니다.</strong>
+    <em>지금까지는 '느낌'이었다면, 여기서부터는 '확인'입니다.</em>
+  </div>
+  <button class="btn-next open-btn" onclick="openPaySheet()">👉 숨겨진 진실 열어보기</button>
+  <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.7;margin-bottom:20px;">이 결과는 지금 이 상태의 당신을 기준으로 생성됩니다.<br>같은 결과는 다시 얻을 수 없습니다.</p>
+  <div class="page-btns" style="padding-top:0;">
+    <button class="btn-prev" onclick="goTo(4,-1)">←</button>
+  </div>
+</div>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="load-orb-wrap"><canvas id="load-canvas" width="120" height="120"></canvas></div>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+  <div class="load-txt" id="load-txt">에너지 감지 중...</div>
+  <div class="load-time">⏱ 30초~1분 소요 예정입니다<br>화면에서 벗어나지 마세요</div>
+  <div class="load-warn" id="load-warn">⚠️ 예상보다 복합적인 구조 감지됨</div>
+</div>
+
+<!-- PAYMENT POPUP -->
+<div id="pay-sheet">
+  <div id="pay-backdrop" onclick="closePaySheet()"></div>
+  <div id="pay-body">
+    <div class="sheet-title">지금까지 본 건 일부입니다</div>
+    <div class="sheet-sub">당신의 진짜 패턴은 아직 열리지 않았습니다.<br>지금까지는 '느낌'이었다면, 여기서부터는 <strong style="color:var(--white);">'확인'</strong>입니다.</div>
+
+    <!-- 후기 슬라이더 -->
+    <div class="rv-slider">
+      <div class="rv-slot" id="rv-a"></div>
+      <div class="rv-slot" id="rv-b"></div>
+    </div>
+
+    <div class="pay-divider"></div>
+
+    <!-- 결제 -->
+    <div class="pay-price-row">
+      <div>
+        <div class="pay-ori">정가 29,900원</div>
+        <div class="pay-price">₩12,900</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">1회 결제 · 월정액 없음 · 즉시 열람</div>
+      </div>
+      <div class="pay-badge">🌟 베타 한정가</div>
+    </div>
+    <div class="pay-list">
+      <div class="pay-item"><span class="pay-check">✓</span><span>당신만의 아우라 카드 완전 공개 + 고화질</span></div>
+      <div class="pay-item"><span class="pay-check">✓</span><span>당신의 '진짜 성격 구조' 완전 해석</span></div>
+      <div class="pay-item"><span class="pay-check">✓</span><span>사람을 끌어당기는 매력 코드 분석</span></div>
+      <div class="pay-item"><span class="pay-check">✓</span><span>연애·인간관계 반복 패턴의 원인</span></div>
+      <div class="pay-item"><span class="pay-check">✓</span><span>당신을 무너뜨리는 방해 요소와 해결 힌트</span></div>
+      <div class="pay-item pay-hot"><span class="pay-check">🔥</span><span>숨겨진 욕망과 감정의 본능까지 공개 (19금)</span></div>
+    </div>
+    <button class="btn-next" onclick="handleSubmit()" style="width:100%;margin-bottom:0;">👉 숨겨진 진실 전체 열어보기</button>
+    <div class="urgency">
+      <div class="u-dot"></div>
+      지금 <strong style="color:white;margin:0 3px;" id="urgency-num">47명</strong> 분석 중 · 베타 종료 시 29,900원
+    </div>
+    <button class="pay-close" onclick="closePaySheet()">닫기</button>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ──
+const TOTAL = 6;
+let cur = 0;
+let photoBase64 = null;
+let userData = {};
+let loadAnim = null;
+
+// ── AURA TYPES ──
+const AURA_TYPES = [
+  {type:'집착 유발형',name:'딥 블루베리 인디고',main:'#9b30ff',sub:'#8eff01',shape:'wave',dohwa:88,extraColor:'짙은 블루베리빛 오로라',changeArea:'금전, 연애 관계'},
+  {type:'불꽃 유인형',name:'다크 체리 크림슨',main:'#ff3355',sub:'#ff9900',shape:'sharp',dohwa:82,extraColor:'타오르는 크림슨 코어',changeArea:'커리어, 인간관계'},
+  {type:'신비 흡인형',name:'미드나잇 바이올렛',main:'#4455ff',sub:'#00ddff',shape:'fluid',dohwa:74,extraColor:'깊은 인디고 안개',changeArea:'연애, 감정 패턴'},
+  {type:'잠재 폭발형',name:'네온 라임 그린',main:'#8eff01',sub:'#ff00aa',shape:'electric',dohwa:79,extraColor:'네온 그린 전류',changeArea:'자기표현, 연애'},
+  {type:'공명 유발형',name:'번트 앰버 코랄',main:'#ff6644',sub:'#00bbaa',shape:'organic',dohwa:71,extraColor:'따뜻한 코랄 파동',changeArea:'친밀한 관계, 건강'},
+  {type:'심층 침투형',name:'러스티 테라코타',main:'#cc8800',sub:'#8b53fe',shape:'deep',dohwa:85,extraColor:'앰버 골드 코어',changeArea:'금전, 진로'},
+  {type:'순간 포획형',name:'프로스티드 로즈 헤이즈',main:'#ff44aa',sub:'#ffee00',shape:'burst',dohwa:77,extraColor:'핑크 번개 에너지',changeArea:'연애, 자존감'},
+];
+let selectedAura = AURA_TYPES[0];
+
+function getAuraFromBirth(dateStr) {
+  if(!dateStr) return AURA_TYPES[0];
+  const d = new Date(dateStr);
+  const seed = (d.getFullYear() + d.getMonth() + d.getDate()) % AURA_TYPES.length;
+  return AURA_TYPES[seed];
+}
+
+// ── NAVIGATION ──
+function goTo(n, dir) {
+  if(n < 0 || n >= TOTAL || n === cur) return;
+  const oldPg = document.getElementById('pg-'+cur);
+  const newPg = document.getElementById('pg-'+n);
+  const fwd = dir !== undefined ? dir > 0 : n > cur;
+  oldPg.classList.remove('active');
+  oldPg.classList.add(fwd ? 'exit-up' : 'exit-down');
+  setTimeout(() => oldPg.classList.remove('exit-up','exit-down'), 500);
+  cur = n;
+  newPg.scrollTop = 0;
+  newPg.classList.add('active');
+  updateProgress();
+}
+
+function updateProgress() {
+  document.getElementById('prog').style.width = ((cur+1)/TOTAL*100)+'%';
+  document.querySelectorAll('.pdot').forEach((d,i) => {
+    d.className = 'pdot' + (i===cur?' active':i<cur?' done':'');
+  });
+}
+
+// ── DOTS ──
+const dotsWrap = document.getElementById('dots-wrap');
+for(let i=0; i<TOTAL; i++) {
+  const d = document.createElement('div');
+  d.className = 'pdot' + (i===0?' active':'');
+  d.onclick = () => goTo(i, i>cur?1:-1);
+  dotsWrap.appendChild(d);
+}
+
+// ── BG CANVAS ──
+(function() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, blobs = [];
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  for(let i=0;i<5;i++) blobs.push({
+    x:Math.random()*1000,y:Math.random()*1000,
+    vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,
+    r:150+Math.random()*200,
+    col:i%2?'rgba(139,83,254,':'rgba(142,255,1,'
+  });
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    blobs.forEach(b => {
+      b.x+=b.vx;b.y+=b.vy;
+      if(b.x<0||b.x>W)b.vx*=-1;
+      if(b.y<0||b.y>H)b.vy*=-1;
+      const g=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+      g.addColorStop(0,b.col+'0.06)');
+      g.addColorStop(1,b.col+'0)');
+      ctx.fillStyle=g;
+      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── LIVE COUNT ──
+setInterval(() => {
+  const el = document.getElementById('live-count');
+  const el2 = document.getElementById('urgency-num');
+  if(!el) return;
+  const n = parseInt(el.textContent);
+  const nn = Math.max(40, Math.min(54, n+(Math.random()>.5?1:-1)));
+  el.textContent = nn;
+  if(el2) el2.textContent = nn;
+}, 4000);
+
+// ── PHOTO ──
+function handlePhoto(e) {
+  const f = e.target.files[0];
+  if(!f) return;
+  const img = new Image();
+  const url = URL.createObjectURL(f);
+  img.onload = () => {
+    const cv = document.createElement('canvas');
+    const MAX = 1024;
+    let w=img.width, h=img.height;
+    if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+    cv.width=w;cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    const dataURL = cv.toDataURL('image/jpeg',0.85);
+    photoBase64 = dataURL.split(',')[1];
+    document.getElementById('previewImg').src = dataURL;
+    document.getElementById('uploadPlaceholder').style.display = 'none';
+    document.getElementById('uploadPreview').style.display = 'block';
+    document.getElementById('uploadArea').classList.add('has-photo');
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+function removePhoto(e) {
+  e.preventDefault(); e.stopPropagation();
+  photoBase64 = null;
+  document.getElementById('photoInput').value = '';
+  document.getElementById('uploadPlaceholder').style.display = 'block';
+  document.getElementById('uploadPreview').style.display = 'none';
+  document.getElementById('uploadArea').classList.remove('has-photo');
+}
+
+// ── ANALYSIS ──
+async function startAnalysis() {
+  const birth = document.getElementById('birthDate').value;
+  if(!photoBase64) { alert('사진을 먼저 업로드해주세요\n정확한 관상 분석을 위해 사진이 필요합니다'); return; }
+  if(!birth) { alert('생년월일을 입력해주세요'); return; }
+  userData.name = document.getElementById('userName').value.trim() || '당신';
+  userData.birth = birth;
+  userData.time = document.getElementById('birthTime').value;
+  userData.blood = document.getElementById('bloodType').value;
+  userData.concern = document.getElementById('concern').value;
+  selectedAura = getAuraFromBirth(birth);
+
+  const ls = document.getElementById('loading-screen');
+  ls.classList.add('on');
+  startLoadOrb();
+
+  const MSGS = [
+    '사주 오행에서 당신의 지배색을<br>추출하는 중',
+    '관상에서 에너지 파동 형태를<br>읽어내는 중',
+    '아우라 컬러를 결정하는<br>요소들을 하나씩 확인하는 중',
+    '같은 색이라도<br>어떤 패턴으로 흐르느냐에 따라<br>전혀 다른 매력이 만들어집니다',
+    '스스로도 설명 못 했던 선택들의 이유가<br>지금 형태를 갖추고 있습니다',
+  ];
+  const bar = document.getElementById('load-bar');
+  const txt = document.getElementById('load-txt');
+  const warn = document.getElementById('load-warn');
+  let msgIdx = 0;
+
+  function showMsg() {
+    txt.style.opacity = '0';
+    setTimeout(() => {
+      txt.innerHTML = MSGS[msgIdx] || MSGS[MSGS.length-1];
+      bar.style.width = Math.min((msgIdx+1)/MSGS.length*80,80)+'%';
+      msgIdx++;
+      setTimeout(() => { txt.style.opacity='1'; }, 50);
+    }, 420);
+  }
+  txt.style.opacity = '0';
+  setTimeout(() => showMsg(), 100);
+  const ticker = setInterval(() => { if(msgIdx < MSGS.length) showMsg(); }, 3000);
+
+  let aiResult = null;
+  try {
+    const res = await fetch('/api/analyze', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({imageBase64:photoBase64,birth:userData.birth,birthTime:userData.time,bloodType:userData.blood,concern:userData.concern})
+    });
+    const json = await res.json();
+    if(json.success) aiResult = json.data;
+  } catch(e) { console.warn('AI 분석 실패:', e.message); }
+
+  clearInterval(ticker);
+  bar.style.width = '100%';
+  warn.classList.add('on');
+  setTimeout(() => {
+    if(loadAnim) cancelAnimationFrame(loadAnim);
+    ls.classList.remove('on');
+    warn.classList.remove('on');
+    txt.style.opacity = '1';
+    renderAuraPage(aiResult);
+    goTo(3, 1);
+  }, 1200);
+}
+
+// ── LOAD ORB ──
+function startLoadOrb() {
+  const cv = document.getElementById('load-canvas');
+  if(!cv) return;
+  const ctx = cv.getContext('2d');
+  let t = 0;
+  function draw() {
+    ctx.clearRect(0,0,120,120);
+    ctx.save();
+    ctx.translate(60,60);
+    ctx.rotate(t);
+    for(let i=0;i<3;i++) {
+      const a = (i/3)*Math.PI*2;
+      const x = Math.cos(a)*30, y = Math.sin(a)*30;
+      const g = ctx.createRadialGradient(x,y,0,x,y,25);
+      g.addColorStop(0, i===0?'rgba(142,255,1,.8)':'rgba(139,83,254,.8)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x,y,25,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+    t += 0.02;
+    loadAnim = requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ── RENDER AURA ──
+function renderAuraPage(ai) {
+  let a = selectedAura;
+  if(ai) {
+    a = {
+      type: ai.aura_type || selectedAura.type,
+      name: ai.aura_name || selectedAura.name,
+      main: ai.main_color || selectedAura.main,
+      sub: ai.sub_color || selectedAura.sub,
+      shape: ai.pattern || selectedAura.shape,
+      dohwa: ai.dohwa_score || selectedAura.dohwa,
+      extraColor: ai.extra_color_desc || selectedAura.extraColor,
+      changeArea: selectedAura.changeArea,
+    };
+    selectedAura = a;
+  }
+
+  // 이름
+  document.querySelectorAll('#pg4-name').forEach(el => el.textContent = userData.name || '당신');
+
+  // 타입
+  const typeLabel = document.getElementById('aura-type-label');
+  if(typeLabel) { typeLabel.textContent = a.type; typeLabel.style.filter='blur(5px)'; }
+
+  // 타입명
+  const typeName = document.getElementById('aura-type-name');
+  if(typeName) typeName.textContent = '— '+a.name+' —';
+
+  // 컬러 칩
+  function setStyle(id, style) { const el=document.getElementById(id); if(el) el.style.cssText=style; }
+  function setText(id, val) { const el=document.getElementById(id); if(el) el.textContent=val; }
+  setStyle('main-cdot-trio', `background:${a.main};box-shadow:0 0 10px ${a.main};width:14px;height:14px;border-radius:50%;`);
+  setStyle('sub-cdot-trio', `background:${a.sub};box-shadow:0 0 10px ${a.sub};width:14px;height:14px;border-radius:50%;`);
+  setText('main-chex-trio', a.main.toUpperCase());
+  setText('sub-chex-trio', a.sub.toUpperCase());
+
+  // extra color
+  const ec = document.getElementById('aura-extra-color');
+  if(ec) ec.textContent = '"'+a.extraColor+'"';
+
+  // change area
+  const ca = document.getElementById('aura-change-area');
+  if(ca) ca.textContent = '"'+a.changeArea+'"';
+
+  // 도화살
+  const fill = document.getElementById('dohwa-fill');
+  const score = document.getElementById('dohwa-score');
+  if(score) score.textContent = a.dohwa+' / 100';
+  if(fill) setTimeout(() => { fill.style.transition='width 1.3s ease'; fill.style.width=a.dohwa+'%'; }, 300);
+
+  // 아우라 카드
+  const canvas = document.getElementById('aura-card-canvas');
+  if(canvas) generateAuraCard(a, canvas);
+
+  // AI 텍스트
+  if(ai) {
+    function setHTML(id, val) { const el=document.getElementById(id); if(el&&val) el.innerHTML=val; }
+    setHTML('aline-1', ai.analysis_line1);
+    setHTML('aline-2', ai.analysis_line2);
+    setHTML('aline-3', ai.analysis_line3);
+
+    function setSection(openId, open2Id, blurId, openVal, open2Val, blurVal) {
+      const o=document.getElementById(openId), o2=document.getElementById(open2Id), b=document.getElementById(blurId);
+      if(o&&openVal) o.textContent=openVal;
+      if(o2&&open2Val) o2.innerHTML=open2Val;
+      if(b&&blurVal) b.textContent=blurVal;
+    }
+    setSection('p5-basic-open','p5-basic-open2','p5-basic-blur', ai.p5_basic_open, ai.p5_basic_open2, ai.p5_basic_blur);
+    setSection('p5-attract-open','p5-attract-open2','p5-attract-blur', ai.p5_attract_open, ai.p5_attract_open2, ai.p5_attract_blur);
+    setSection('p5-relation-open','p5-relation-open2','p5-relation-blur', ai.p5_relation_open, ai.p5_relation_open2, ai.p5_relation_blur);
+    setSection('p5-problem-open','p5-problem-open2','p5-problem-blur', ai.p5_problem_open, ai.p5_problem_open2, ai.p5_problem_blur);
+    setSection('p5-instinct-open','p5-instinct-open2','p5-instinct-blur', ai.p5_instinct_open, ai.p5_instinct_open2, ai.p5_instinct_blur);
+  }
+}
+
+// ── AURA CARD CANVAS ──
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return h;}
+function makeRNG(seed){let s=seed;return()=>{s=s*1664525+1013904223|0;return(s>>>0)/4294967296;};}
+function generateAuraCard(a, canvas) {
+  canvas.width = 300; canvas.height = 400;
+  const ctx = canvas.getContext('2d');
+  const rng = makeRNG(hashStr(a.main+a.sub));
+  // 배경
+  const bg = ctx.createLinearGradient(0,0,300,400);
+  bg.addColorStop(0,'#080b10'); bg.addColorStop(1,'#0d0a1e');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,300,400);
+  // 글로우 블롭
+  for(let i=0;i<8;i++) {
+    const x=rng()*300,y=rng()*400,r=60+rng()*120,col=i%2?a.main:a.sub;
+    const g=ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,col+'55'); g.addColorStop(1,col+'00');
+    ctx.fillStyle=g; ctx.globalAlpha=.5+rng()*.4;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+// ── REVIEWS ──
+const REVIEWS = [
+  {name:'김ㅇㅇ',age:'24세',color:'conic-gradient(#8eff01,#8b53fe,#8eff01)',tc:'#080b10',hi:'진짜 소름...',text:'솔직히 그냥 재미로 했는데 읽다가 멈췄어요. 왜 나 이러지 싶었던 게 다 나와있어서. 19금 파트는 혼자 새벽에 봤는데 좀 당황했음 ㅋㅋㅋ 근데 맞아서 더 당황'},
+  {name:'이ㅇㅇ',age:'19세',color:'conic-gradient(#ff6bff,#8b53fe,#ff6bff)',tc:'#fff',hi:'내 아우라 카드 이뻐서 좋아요~~~~~~~~~~~~',text:'핸드폰 배경화면 해놔야지 희희 근데 진짜로 내용도 맞는거같아서 친구한테 보냈더니 쟤도 바로 함ㅋㅋㅋㅋ'},
+  {name:'박ㅇㅇ',age:'28세',color:'conic-gradient(#8eff01,#00d4ff,#8eff01)',tc:'#080b10',hi:'어떻게 이걸 알죠',text:'전남친들이랑 왜 항상 같은패턴으로 끝났는지 여기 다 나와있었어요. 읽으면서 좀 무서웠음. 이거 그냥 테스트 아닌거 맞죠?'},
+  {name:'최ㅇㅇ',age:'22세',color:'conic-gradient(#ff9090,#ff44aa,#ff9090)',tc:'#fff',hi:'생각보다 너무 정확해서 놀랐어요',text:'처음엔 에이 어떻게 맞겠어 했는데... 깊어지면 멀어진다는 부분이 완전 저였거든요. 지금 썸남한테도 그러고 있었는데 소름돋았음'},
+  {name:'정ㅇㅇ',age:'31세',color:'conic-gradient(#8b53fe,#4455ff,#8b53fe)',tc:'#fff',hi:'9900원인게 믿기지않음',text:'이거 진짜 몇만원짜리 상담보다 나은듯요.. 저 원래 이런거 안믿는데 읽다보니까 계속 고개가 끄덕여졌어요'},
+  {name:'오ㅇㅇ',age:'26세',color:'conic-gradient(#ffcc44,#ff7722,#ffcc44)',tc:'#080b10',hi:'ㅋㅋㅋㅋ 19금파트',text:'이거 읽다가 혼자 방에서 뭐야ㅋㅋㅋㅋ 했음 아니 어떻게 알아 이걸. 맞긴 맞는데 좀 민망달까. 암튼 재밌고 신기했어요'},
+  {name:'강ㅇㅇ',age:'20세',color:'conic-gradient(#44ffcc,#00bbaa,#44ffcc)',tc:'#080b10',hi:'친구들이랑 같이봄',text:'저 포함 4명이서 다같이 했는데 결과 공유하면서 난리났어요ㅋㅋ 아우라카드 각자 너무달라서 신기하고 내용도 다들 맞다고해서 진짜인가봐요'},
+  {name:'윤ㅇㅇ',age:'25세',color:'conic-gradient(#c084ff,#8b53fe,#c084ff)',tc:'#fff',hi:'결제하고 한시간동안 읽었어요',text:'밥먹다가 폰 보면서 읽었는데 밥이 식는줄도 몰랐음.. 그냥 연애운 같은거 알려주는줄 알았는데 생각보다 나에 대한 이야기라서 흥미로웠어요'},
+  {name:'임ㅇㅇ',age:'29세',color:'conic-gradient(#ff6644,#ffcc44,#ff6644)',tc:'#080b10',hi:'눈물날뻔했어요 진짜로',text:'사람들이 좋아하는데 진짜 나를 아는 느낌은 없다... 그 파트 읽다가 뭔가 뭉클했어요. 평소에 정확히 이런 생각 했거든요'},
+  {name:'한ㅇㅇ',age:'23세',color:'conic-gradient(#8eff01,#8b53fe,#8eff01)',tc:'#080b10',hi:'인스타 올렸더니 dm 폭발',text:'아우라카드 스토리에 올렸는데 이게뭐냐고 dm이 엄청왔어요ㅋㅋ 링크 공유해줬더니 주변에 다 퍼짐. 저도 내용 꽤 맞아서 신기했고요'},
+];
+let rvIdx = 0, rvActive = 'a', rvTimer = null;
+function makeRvHTML(r) {
+  return `<div class="rv-avatar" style="background:${r.color};color:${r.tc};">${r.name[0]}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+        <span class="rv-name">${r.name} 님</span>
+        <span class="rv-stars">★★★★★</span>
+        <span class="rv-age">${r.age}</span>
+      </div>
+      <p class="rv-text"><span class="rv-hi">${r.hi}</span> ${r.text}</p>
+    </div>`;
+}
+function initReviews() {
+  const sa = document.getElementById('rv-a'), sb = document.getElementById('rv-b');
+  if(!sa||!sb) return;
+  rvIdx=0; rvActive='a';
+  sa.innerHTML = makeRvHTML(REVIEWS[0]);
+  sa.style.transform='translateY(0)'; sa.style.opacity='1';
+  sb.innerHTML = makeRvHTML(REVIEWS[1]);
+  sb.style.transform='translateY(112px)'; sb.style.opacity='0';
+  if(rvTimer) clearInterval(rvTimer);
+  rvTimer = setInterval(() => {
+    rvIdx = (rvIdx+1) % REVIEWS.length;
+    const nextIdx = (rvIdx+1) % REVIEWS.length;
+    const cur_slot = document.getElementById('rv-'+rvActive);
+    const next_slot = document.getElementById('rv-'+(rvActive==='a'?'b':'a'));
+    if(!cur_slot||!next_slot) return;
+    next_slot.innerHTML = makeRvHTML(REVIEWS[nextIdx]);
+    next_slot.style.transition='none';
+    next_slot.style.transform='translateY(112px)';
+    next_slot.style.opacity='0';
+    next_slot.offsetHeight;
+    next_slot.style.transition='transform .7s ease,opacity .7s ease';
+    cur_slot.style.transition='transform .7s ease,opacity .7s ease';
+    requestAnimationFrame(()=>{
+      cur_slot.style.transform='translateY(-112px)'; cur_slot.style.opacity='0';
+      next_slot.style.transform='translateY(0)'; next_slot.style.opacity='1';
+    });
+    rvActive = rvActive==='a'?'b':'a';
+  }, 3000);
+}
+
+// ── PAY SHEET ──
+function openPaySheet() {
+  document.getElementById('pay-sheet').classList.add('on');
+  document.body.style.overflow='hidden';
+  setTimeout(initReviews, 100);
+}
+function closePaySheet() {
+  document.getElementById('pay-sheet').classList.remove('on');
+  document.body.style.overflow='';
+  if(rvTimer){clearInterval(rvTimer);rvTimer=null;}
+}
+function handleSubmit() {
+  alert('결제 모듈 연동 예정\n토스페이먼츠 연동 후 이 부분을 교체하세요.');
+}
+</script>
+</body>
+</html>
